@@ -4,8 +4,7 @@ import {
   RectRegionSchema,
   TableLayoutProfileSchema,
   AppSettingsSchema,
-  AIExplanationSchema,
-  GameEventSchema
+  AIExplanationSchema
 } from '../../packages/schemas/src';
 import { DEFAULT_LAYOUT_PROFILE } from '../../packages/test-fixtures/src';
 

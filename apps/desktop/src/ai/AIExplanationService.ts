@@ -1,8 +1,6 @@
 import {
   AIExplanationRequest,
   AIExplanationResult,
-  PokerActionType,
-  Street,
   CardString
 } from '../../../../packages/shared-types/src';
 

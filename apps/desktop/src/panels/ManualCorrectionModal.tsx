@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GameState, CardString, Street, PokerActionType } from '../../../../packages/shared-types/src';
+import { GameState, CardString, Street } from '../../../../packages/shared-types/src';
 import { X, Check, RotateCcw, AlertCircle } from 'lucide-react';
 
 interface ManualCorrectionModalProps {
@@ -194,8 +194,8 @@ export const ManualCorrectionModal: React.FC<ManualCorrectionModalProps> = ({
             />
           </div>
 
-          {/* Pot and Street */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          {/* Pot, Stack, Street, and Position */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: 4 }}>
                 Pote ($):
@@ -204,6 +204,24 @@ export const ManualCorrectionModal: React.FC<ManualCorrectionModalProps> = ({
                 type="number"
                 value={potValue}
                 onChange={e => setPotValue(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  background: 'rgba(0,0,0,0.4)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-main)'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: 4 }}>
+                Stack Hero ($):
+              </label>
+              <input
+                type="number"
+                value={heroStack}
+                onChange={e => setHeroStack(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '8px 12px',

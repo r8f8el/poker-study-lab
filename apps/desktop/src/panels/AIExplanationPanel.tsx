@@ -6,10 +6,8 @@ import {
   ChevronUp,
   Brain,
   ShieldAlert,
-  HelpCircle,
   RefreshCw,
   Lightbulb,
-  CheckCircle2,
   AlertTriangle
 } from 'lucide-react';
 

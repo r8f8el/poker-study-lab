@@ -1,4 +1,4 @@
-import { TableStatus, Street, CardString } from '../../packages/shared-types/src';
+import { TableStatus, CardString } from '../../packages/shared-types/src';
 
 export interface TransitionInput {
   hasAuthorizedApp: boolean;

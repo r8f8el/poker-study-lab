@@ -1,4 +1,4 @@
-import { GameEvent, HandRecord, EventType, Street } from '../../../../packages/shared-types/src';
+import { GameEvent, HandRecord } from '../../../../packages/shared-types/src';
 
 export interface IEventStore {
   createHand(hand_id: string, table_id: string, game_type?: 'NLH' | 'PLO'): HandRecord;

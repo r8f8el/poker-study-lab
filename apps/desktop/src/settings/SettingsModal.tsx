@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppSettings, TableLayoutProfile } from '../../../../packages/shared-types/src';
-import { X, ShieldCheck, Sliders, Monitor, BrainCircuit, Check, Crosshair } from 'lucide-react';
+import { X, ShieldCheck, Sliders, Check } from 'lucide-react';
 import { RoiCalibrationPanel } from './RoiCalibrationPanel';
 
 interface SettingsModalProps {

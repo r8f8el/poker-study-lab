@@ -1,12 +1,11 @@
 import {
   GameState,
   GameEvent,
-  Street,
-  TableStatus,
   CardString,
   FieldConfidence,
   PokerActionType,
-  ActionHistoryEntry
+  ActionHistoryEntry,
+  normalizeHeroCards
 } from '../../../../packages/shared-types/src';
 
 export class HandStateEngine {
@@ -42,16 +41,16 @@ export class HandStateEngine {
         cards: [],
         position: 'BTN',
         stack: 200,
-        bet_current_round: 0,
-        has_folded: false,
-        is_all_in: false
+        currentBet: 0,
+        isFolded: false,
+        isAllIn: false
       },
       board: [],
       pot: 3, // SB + BB initial
       players: [
-        { id: 'p1', name: 'Hero', seat: 1, stack: 200, position: 'BTN', is_hero: true, has_folded: false, is_all_in: false, current_bet: 0 },
-        { id: 'p2', name: 'SB', seat: 2, stack: 199, position: 'SB', is_hero: false, has_folded: false, is_all_in: false, current_bet: 1 },
-        { id: 'p3', name: 'BB', seat: 3, stack: 198, position: 'BB', is_hero: false, has_folded: false, is_all_in: false, current_bet: 2 }
+        { id: 'p1', name: 'Hero', seat: 1, stack: 200, position: 'BTN', isHero: true, isFolded: false, isAllIn: false, currentBet: 0, isActive: true },
+        { id: 'p2', name: 'SB', seat: 2, stack: 199, position: 'SB', isHero: false, isFolded: false, isAllIn: false, currentBet: 1, isActive: true },
+        { id: 'p3', name: 'BB', seat: 3, stack: 198, position: 'BB', isHero: false, isFolded: false, isAllIn: false, currentBet: 2, isActive: true }
       ],
       action_history: [],
       active_player: 'hero',
@@ -94,8 +93,8 @@ export class HandStateEngine {
         next.street = 'PREFLOP';
         next.status = 'PREFLOP';
         next.hero.cards = [];
-        next.hero.has_folded = false;
-        next.hero.is_all_in = false;
+        next.hero.isFolded = false;
+        next.hero.isAllIn = false;
         next.board = [];
         next.action_history = [];
         const smallBlind = (event.data?.smallBlind as number) || next.blinds.small;
@@ -109,7 +108,7 @@ export class HandStateEngine {
 
       case 'HOLE_CARDS_CONFIRMED': {
         const cards = (event.data?.cards as CardString[]) || [];
-        next.hero.cards = [...cards];
+        next.hero.cards = normalizeHeroCards(cards);
         next.confidence.hero_cards = cards.map(c => ({
           value: c,
           confidence: event.confidence || 0.99
@@ -159,9 +158,9 @@ export class HandStateEngine {
 
         if (actionEntry.player === 'Hero' || actionEntry.player === 'hero') {
           if (actionEntry.action === 'fold') {
-            next.hero.has_folded = true;
+            next.hero.isFolded = true;
           } else if (actionEntry.action === 'all_in') {
-            next.hero.is_all_in = true;
+            next.hero.isAllIn = true;
           }
         }
         break;

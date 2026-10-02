@@ -1,10 +1,9 @@
 import {
   CardObservation,
   ConfirmedCardValue,
-  ConfirmedStatus,
   FieldConfidence,
   CardString
-} from '../../../packages/shared-types/src';
+} from '../../../../packages/shared-types/src';
 
 export class TemporalSlotValidator {
   private windowSize: number;
@@ -13,8 +12,6 @@ export class TemporalSlotValidator {
 
   private observations: CardObservation[] = [];
   private confirmed: ConfirmedCardValue | null = null;
-  private consecutiveNewTarget: CardString | null = null;
-  private consecutiveNewCount = 0;
 
   constructor(windowSize = 7, minConsensus = 5, minConfidence = 0.95) {
     this.windowSize = windowSize;
@@ -49,8 +46,6 @@ export class TemporalSlotValidator {
         samples: emptyCount,
         reason: 'Slot vazio confirmado por consenso temporal.'
       };
-      this.consecutiveNewTarget = null;
-      this.consecutiveNewCount = 0;
       return this.confirmed;
     }
 
@@ -127,8 +122,6 @@ export class TemporalSlotValidator {
         samples: maxCount,
         reason: `Confirmado com ${maxCount}/${this.windowSize} frames e confiança ${Math.round(avgConfidence * 100)}%.`
       };
-      this.consecutiveNewTarget = null;
-      this.consecutiveNewCount = 0;
       return this.confirmed;
     }
 
@@ -148,8 +141,6 @@ export class TemporalSlotValidator {
   public reset(): void {
     this.observations = [];
     this.confirmed = null;
-    this.consecutiveNewTarget = null;
-    this.consecutiveNewCount = 0;
   }
 
   public getConfirmed(): ConfirmedCardValue | null {

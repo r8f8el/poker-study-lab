@@ -1,4 +1,4 @@
-import { CaptureSource, CapturedFrame, RectRegion } from '../../../packages/shared-types/src';
+import { CaptureSource, CapturedFrame } from '../../../../packages/shared-types/src';
 
 export interface ScreenCaptureListener {
   onFrame?: (frame: CapturedFrame) => void;

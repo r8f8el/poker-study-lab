@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { OpponentProfile, OpponentProfileType } from '../../../../packages/shared-types/src';
+import { OpponentProfile } from '../../../../packages/shared-types/src';
 import {
   buildRangeMatrix,
   OPPONENT_PROFILES,
   getCombosForPercentage
 } from '../decision/RangeModel';
-import { Users, Sliders, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Users, Sliders } from 'lucide-react';
 
 interface RangeMatrixPanelProps {
   activeProfile: OpponentProfile;

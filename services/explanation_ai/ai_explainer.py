@@ -6,7 +6,7 @@ override, or bypass the deterministic engine's decision or frequencies.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 import time
 from typing import Dict, List, Optional
 
@@ -98,7 +98,7 @@ class AIExplainer:
         )
 
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-        now_iso = datetime.utcnow().isoformat()
+        now_iso = datetime.now(timezone.utc).isoformat()
 
         alternatives = [
             "Aguarde a finalização de animações ou transições de fichas.",
@@ -215,7 +215,7 @@ class AIExplainer:
             risks.append("Mantenha controle posicional e observe o dimensionamento das apostas.")
 
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
-        now_iso = datetime.utcnow().isoformat()
+        now_iso = datetime.now(timezone.utc).isoformat()
         summary = f"Decisão [{action.upper()}]: {concept}. Equidade {equity_pct} vs Pot Odds {pot_odds_pct}."
 
         return AIExplanationPayload(

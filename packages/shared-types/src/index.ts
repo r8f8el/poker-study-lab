@@ -85,6 +85,16 @@ export interface HeroState {
   position: 'SB' | 'BB' | 'UTG' | 'MP' | 'CO' | 'BTN' | string;
   cards: [CardString, CardString] | [];
   stack: number;
+  currentBet?: number;
+  isFolded?: boolean;
+  isAllIn?: boolean;
+}
+
+export function normalizeHeroCards(cards: (CardString | string)[]): [CardString, CardString] | [] {
+  if (cards.length >= 2 && cards[0] && cards[1]) {
+    return [cards[0] as CardString, cards[1] as CardString];
+  }
+  return [];
 }
 
 export interface PlayerState {
@@ -96,6 +106,8 @@ export interface PlayerState {
   isActive: boolean;
   isFolded: boolean;
   currentBet: number;
+  isHero?: boolean;
+  isAllIn?: boolean;
 }
 
 export type PokerActionType = 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'all_in';

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { InMemoryEventStore, generateHandId, generateEventId } from '../../apps/desktop/src/event-store/EventStore';
 import { HandStateEngine } from '../../apps/desktop/src/event-store/HandStateEngine';
-import { GameEvent, GameState } from '../../packages/shared-types/src';
+import { GameEvent } from '../../packages/shared-types/src';
 
 describe('Incremento 5 — EventStore & HandStateEngine', () => {
   let store: InMemoryEventStore;

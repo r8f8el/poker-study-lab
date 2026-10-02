@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { TableLayoutProfile, RectRegion } from '../../../packages/shared-types/src';
-import { Save, RotateCcw, Check, Move, Eye } from 'lucide-react';
+import { TableLayoutProfile, RectRegion } from '../../../../packages/shared-types/src';
+import { Save, RotateCcw, Check } from 'lucide-react';
 
 interface RoiCalibrationPanelProps {
   profile: TableLayoutProfile;
@@ -10,7 +10,7 @@ interface RoiCalibrationPanelProps {
 
 export const RoiCalibrationPanel: React.FC<RoiCalibrationPanelProps> = ({
   profile,
-  frameDataUrl,
+  frameDataUrl: _frameDataUrl,
   onSaveProfile
 }) => {
   const [selectedRoi, setSelectedRoi] = useState<keyof TableLayoutProfile['regions']>('hero_cards');
@@ -20,7 +20,7 @@ export const RoiCalibrationPanel: React.FC<RoiCalibrationPanelProps> = ({
   const activeRect = regions[selectedRoi] as RectRegion;
 
   const handleCoordinateChange = (field: keyof RectRegion, value: number) => {
-    setRegions(prev => ({
+    setRegions((prev: TableLayoutProfile['regions']) => ({
       ...prev,
       [selectedRoi]: {
         ...(prev[selectedRoi] as RectRegion),

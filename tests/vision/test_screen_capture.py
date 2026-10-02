@@ -40,6 +40,45 @@ def test_frame_ring_buffer_capacity_and_discard():
     assert buffer.pop() is None
 
 
+def test_frame_ring_buffer_concurrent_access():
+    import threading
+
+    buffer = FrameRingBuffer(capacity=10)
+    num_threads = 4
+    items_per_thread = 100
+
+    def producer(thread_id: int):
+        for i in range(items_per_thread):
+            f = Frame(
+                id=f"{thread_id}_{i}",
+                timestamp=time.monotonic(),
+                width=1280,
+                height=720,
+                source_id="s1"
+            )
+            buffer.push(f)
+
+    def consumer():
+        popped = 0
+        for _ in range(items_per_thread):
+            if buffer.pop() is not None:
+                popped += 1
+            buffer.peek_latest()
+
+    threads = []
+    for t_id in range(num_threads):
+        threads.append(threading.Thread(target=producer, args=(t_id,)))
+        threads.append(threading.Thread(target=consumer))
+
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert buffer.total_ingested == num_threads * items_per_thread
+    assert buffer.size <= 10
+
+
 def test_synthetic_screen_capture_lifecycle():
     cap = SyntheticScreenCapture(buffer_capacity=5)
     source = cap.select_source()

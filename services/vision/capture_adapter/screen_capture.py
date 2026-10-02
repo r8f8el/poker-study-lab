@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 import time
 from typing import Optional, List, Dict, Any
 from collections import deque
+from threading import Lock
 
 
 @dataclass(frozen=True)
@@ -97,42 +98,48 @@ class FrameRingBuffer:
         if capacity < 1:
             raise ValueError("Buffer capacity must be at least 1")
         self.capacity = capacity
+        self._lock = Lock()
         self._buffer: deque[Frame] = deque(maxlen=capacity)
         self.total_ingested = 0
         self.total_dropped = 0
         self._latencies: deque[float] = deque(maxlen=50)
 
     def push(self, frame: Frame) -> None:
-        self.total_ingested += 1
-        if len(self._buffer) == self.capacity:
-            self.total_dropped += 1
-        self._buffer.append(frame)
-
         latency = max(0.0, (time.monotonic() - frame.timestamp) * 1000)
-        self._latencies.append(latency)
+        with self._lock:
+            self.total_ingested += 1
+            if len(self._buffer) == self.capacity:
+                self.total_dropped += 1
+            self._buffer.append(frame)
+            self._latencies.append(latency)
 
     def peek_latest(self) -> Optional[Frame]:
-        if not self._buffer:
-            return None
-        return self._buffer[-1]
+        with self._lock:
+            if not self._buffer:
+                return None
+            return self._buffer[-1]
 
     def pop(self) -> Optional[Frame]:
-        if not self._buffer:
-            return None
-        return self._buffer.popleft()
+        with self._lock:
+            if not self._buffer:
+                return None
+            return self._buffer.popleft()
 
     def clear(self) -> None:
-        self._buffer.clear()
+        with self._lock:
+            self._buffer.clear()
 
     @property
     def size(self) -> int:
-        return len(self._buffer)
+        with self._lock:
+            return len(self._buffer)
 
     @property
     def average_latency_ms(self) -> float:
-        if not self._latencies:
-            return 0.0
-        return sum(self._latencies) / len(self._latencies)
+        with self._lock:
+            if not self._latencies:
+                return 0.0
+            return sum(self._latencies) / len(self._latencies)
 
 
 class SyntheticScreenCapture(ScreenCapture):

@@ -21,16 +21,12 @@ import {
   Layers,
   AlertTriangle,
   CheckCircle2,
-  Lock,
   Pause,
   Play,
   RotateCcw,
   Sparkles,
-  HelpCircle,
   Eye,
   EyeOff,
-  Zap,
-  Maximize2,
   Database,
   History,
   Users,
@@ -41,8 +37,7 @@ import {
   Check,
   Save,
   X,
-  Search,
-  Sliders
+  Search
 } from 'lucide-react';
 import { SlotDebugInfo } from '../vision/TableVisionAnalyzer';
 
@@ -77,7 +72,7 @@ export const LiveSplitView: React.FC<LiveSplitViewProps> = ({
   activeProfile,
   lastFrame,
   isCapturing,
-  bufferMetrics,
+  bufferMetrics: _bufferMetrics,
   windowStatus = 'NORMAL',
   windowStatusReason,
   eventHistory = [],

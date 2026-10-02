@@ -20,7 +20,7 @@ O produto foi concebido estritamente para estudo e treinamento, obedecendo às s
 - ✅ **Bloqueia a análise via `RecommendationGate` caso a janela não corresponda ao aplicativo autorizado**
 - ✅ **Processamento estritamente local — nenhum frame é transmitido para servidores externos**
 
-Para mais detalhes, consulte [SECURITY.md](file:///c:/Users/rafae/Projetos%20I.A/poker-study-lab/SECURITY.md).
+Para mais detalhes, consulte [SECURITY.md](./SECURITY.md).
 
 ---
 
@@ -79,7 +79,8 @@ Painel de análise ao vivo (LiveSplitView)
 
 ### 1. Instalar dependências
 ```bash
-cd "c:\Users\rafae\Projetos I.A\poker-study-lab"
+git clone https://github.com/r8f8el/poker-study-lab.git
+cd poker-study-lab
 npm install
 ```
 
@@ -89,17 +90,22 @@ npm run dev
 ```
 Acesse a aplicação no navegador em `http://127.0.0.1:5173`.
 
-### 3. Executar os testes automatizados
+### 3. Validação de Tipagem TypeScript Estrita
+```bash
+npm run typecheck
+```
+
+### 4. Executar os testes automatizados TypeScript
 ```bash
 npm test
 ```
 
-### 4. Executar os testes Python da visão
+### 5. Executar os testes Python da visão
 ```bash
 uv run --with pytest pytest tests/vision
 ```
 
-### 5. Compilar para produção
+### 6. Compilar para produção
 ```bash
 npm run build
 ```

@@ -2,7 +2,6 @@ import {
   CardString,
   CapturedFrame,
   TableLayoutProfile,
-  GameState,
   Street,
   Rank,
   Suit,
@@ -71,7 +70,7 @@ export class TableVisionAnalyzer {
   public async analyzeFrame(
     frame: CapturedFrame,
     profile: TableLayoutProfile,
-    temporalValidator?: TemporalTableValidator
+    _temporalValidator?: TemporalTableValidator
   ): Promise<VisionDetectionResult | null> {
     if (!frame.dataUrl || this.isProcessing) return null;
 

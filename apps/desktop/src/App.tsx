@@ -5,8 +5,6 @@ import {
   TableLayoutProfile,
   CapturedFrame,
   CaptureSource,
-  RecommendationGateResult,
-  DecisionRecommendation,
   GameEvent,
   OpponentProfile,
   AIExplanationResult
@@ -16,12 +14,10 @@ import {
   MOCK_VALID_FLOP_STATE,
   MOCK_INCONSISTENT_DUPLICATE_CARD_STATE,
   MOCK_UNCERTAIN_STATE,
-  DEFAULT_LAYOUT_PROFILE,
   POKERSTARS_LAYOUT_PROFILE,
   SUPREMA_POKER_LAYOUT_PROFILE,
   MOCK_SUPREMA_POKER_STATE,
-  MOCK_AUTHORIZED_SOURCE,
-  MOCK_UNAUTHORIZED_SOURCE
+  MOCK_AUTHORIZED_SOURCE
 } from '../../../packages/test-fixtures/src';
 import { BaseScreenCapture, SyntheticPokerCapture } from './capture/ScreenCaptureAdapter';
 import { WindowMediaStreamCapture } from './capture/WindowMediaStreamCapture';
@@ -34,7 +30,7 @@ import { SettingsModal } from './settings/SettingsModal';
 import { ManualCorrectionModal } from './panels/ManualCorrectionModal';
 import { WindowSelectorModal } from './capture/WindowSelectorModal';
 import { TemporalTableValidator } from './vision/TemporalValidator';
-import { InMemoryEventStore, generateHandId, generateEventId } from './event-store/EventStore';
+import { InMemoryEventStore, generateEventId } from './event-store/EventStore';
 import { HandStateEngine } from './event-store/HandStateEngine';
 import { DeterministicDecisionEngine } from './decision/DeterministicDecisionEngine';
 import { OPPONENT_PROFILES } from './decision/RangeModel';
@@ -52,25 +48,6 @@ const INITIAL_SETTINGS: AppSettings = {
   enableAIExplanations: true,
   theme: 'midnight',
   activeProfileId: 'profile_suprema_poker_vertical'
-};
-
-const REFERENCE_RECOMMENDATION: DecisionRecommendation = {
-  action: 'check',
-  frequencies: {
-    check: 0.70,
-    bet_33: 0.30
-  },
-  source: 'reference_strategy',
-  confidence: 0.96,
-  explanation_factors: [
-    'Posição vantajosa no BTN',
-    'Textura do board Qs 8h 7h conectada com flush draw',
-    'Overcards As Kc possuem valor de showdown e equity marginal',
-    'Pote $150 controlado contra range do Big Blind'
-  ],
-  pot_odds: 0.25,
-  equity_estimate: 0.48,
-  gate_result: { allowed: true, reasons: [] }
 };
 
 export const App: React.FC = () => {

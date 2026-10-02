@@ -3,7 +3,7 @@ import { HandEvaluator } from '../../apps/desktop/src/decision/HandEvaluator';
 import { EquityCalculator } from '../../apps/desktop/src/decision/EquityCalculator';
 import { DeterministicDecisionEngine } from '../../apps/desktop/src/decision/DeterministicDecisionEngine';
 import { GameState, RecommendationGateResult } from '../../packages/shared-types/src';
-import { MOCK_VALID_FLOP_STATE, MOCK_VALID_PREFLOP_STATE } from '../../packages/test-fixtures/src';
+import { MOCK_VALID_FLOP_STATE } from '../../packages/test-fixtures/src';
 
 describe('Incremento 6 — HandEvaluator', () => {
   it('identifies Royal Flush correctly', () => {

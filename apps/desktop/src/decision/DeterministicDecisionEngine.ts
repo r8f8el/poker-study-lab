@@ -50,7 +50,7 @@ export class DeterministicDecisionEngine {
       callAmount = lastAction.amount || Math.round(pot * 0.33);
     } else if (gameState.street === 'PREFLOP') {
       // Facing big blind if not yet called
-      callAmount = Math.max(0, gameState.blinds.big - gameState.hero.bet_current_round);
+      callAmount = Math.max(0, gameState.blinds.big - (gameState.hero.currentBet ?? 0));
     }
 
     // 3. Compute Pot Odds

@@ -1,8 +1,9 @@
 import {
   GameState,
   RecommendationGateResult,
-  AppSettings
-} from '../../../packages/shared-types/src';
+  AppSettings,
+  PlayerState
+} from '../../../../packages/shared-types/src';
 
 export interface GateEvaluationOptions {
   frameLatencyMs?: number;
@@ -68,7 +69,7 @@ export class RecommendationGate {
     }
 
     // 5. Hero folded check
-    if (gameState.hero.has_folded) {
+    if (gameState.hero.isFolded) {
       return {
         allowed: false,
         reasons: ['Hero já efetuou fold nesta mão. Nenhuma recomendação necessária.'],
@@ -85,7 +86,7 @@ export class RecommendationGate {
       };
     }
 
-    if (gameState.hero.is_all_in && gameState.hero.stack > 0) {
+    if (gameState.hero.isAllIn && gameState.hero.stack > 0) {
       return {
         allowed: false,
         reasons: [
@@ -97,7 +98,7 @@ export class RecommendationGate {
 
     // 7. Active players count check
     if (gameState.players && gameState.players.length > 0) {
-      const activeInHand = gameState.players.filter(p => !p.has_folded);
+      const activeInHand = gameState.players.filter((p: PlayerState) => !p.isFolded);
       if (activeInHand.length < 2) {
         return {
           allowed: false,
@@ -166,7 +167,7 @@ export class RecommendationGate {
     }
 
     if (gameState.players && gameState.players.length > 0) {
-      const sumRoundBets = gameState.players.reduce((sum, p) => sum + (p.current_bet || 0), 0);
+      const sumRoundBets = gameState.players.reduce((sum: number, p: PlayerState) => sum + (p.currentBet || 0), 0);
       if (sumRoundBets > gameState.pot) {
         reasons.push(`Inconsistência: Soma das apostas da rodada ($${sumRoundBets}) excede o pote total ($${gameState.pot}).`);
       }

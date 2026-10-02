@@ -1,7 +1,7 @@
-import { BaseScreenCapture, ScreenCaptureListener } from './ScreenCaptureAdapter';
-import { CaptureSource, CapturedFrame, RectRegion } from '../../../../packages/shared-types/src';
+import { BaseScreenCapture } from './ScreenCaptureAdapter';
+import { CaptureSource, CapturedFrame } from '../../../../packages/shared-types/src';
 import { CircularFrameBuffer, FrameMetrics } from './CircularFrameBuffer';
-import { WindowLifecycleMonitor, WindowStatus } from './WindowLifecycleMonitor';
+import { WindowLifecycleMonitor } from './WindowLifecycleMonitor';
 
 export class WindowMediaStreamCapture extends BaseScreenCapture {
   private mediaStream: MediaStream | null = null;

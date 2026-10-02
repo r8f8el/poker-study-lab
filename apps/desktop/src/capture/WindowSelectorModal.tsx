@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CaptureSource } from '../../../../packages/shared-types/src';
-import { MOCK_AUTHORIZED_SOURCE, MOCK_UNAUTHORIZED_SOURCE } from '../../../../packages/test-fixtures/src';
-import { Monitor, CheckSquare, Square, ShieldCheck, AlertTriangle, X, Play } from 'lucide-react';
+import { MOCK_AUTHORIZED_SOURCE } from '../../../../packages/test-fixtures/src';
+import { Monitor, ShieldCheck, X, Play } from 'lucide-react';
 
 interface WindowSelectorModalProps {
   isOpen: boolean;
@@ -13,7 +13,7 @@ interface WindowSelectorModalProps {
 
 export const WindowSelectorModal: React.FC<WindowSelectorModalProps> = ({
   isOpen,
-  activeSource,
+  activeSource: _activeSource,
   onClose,
   onSelectAndStart,
   onRequestNativePicker

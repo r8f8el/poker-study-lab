@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Square, Settings, Edit3, ShieldCheck, ShieldAlert, Activity, Monitor } from 'lucide-react';
+import { Play, Pause, Square, Settings, Edit3, ShieldCheck, ShieldAlert, Monitor } from 'lucide-react';
 import { CaptureSource } from '../../../../packages/shared-types/src';
 
 interface HeaderBarProps {

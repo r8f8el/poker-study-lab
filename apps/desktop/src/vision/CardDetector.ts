@@ -90,7 +90,7 @@ export class CardDetector {
   private classifyTwoColorPip(
     pixelData: Uint8ClampedArray,
     width: number,
-    height: number,
+    _height: number,
     startY: number,
     endY: number,
     colorType: 'red' | 'black'

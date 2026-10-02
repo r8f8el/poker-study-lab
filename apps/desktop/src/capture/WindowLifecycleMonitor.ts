@@ -12,8 +12,8 @@ export interface WindowLifecycleEvent {
   sourceId: string;
   timestamp: number;
   reason: string;
-  currentBounds?: RectRegion;
-  referenceBounds?: RectRegion;
+  currentBounds?: RectRegion | null;
+  referenceBounds?: RectRegion | null;
 }
 
 export type WindowLifecycleListener = (event: WindowLifecycleEvent) => void;
@@ -99,7 +99,7 @@ export class WindowLifecycleMonitor {
     return 'NORMAL';
   }
 
-  private updateStatus(newStatus: WindowStatus, reason: string, currentBounds?: RectRegion): void {
+  private updateStatus(newStatus: WindowStatus, reason: string, currentBounds?: RectRegion | null): void {
     if (this.currentStatus !== newStatus) {
       this.currentStatus = newStatus;
       const event: WindowLifecycleEvent = {

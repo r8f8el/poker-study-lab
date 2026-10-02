@@ -16,8 +16,11 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
+      "@shared-types": ["./packages/shared-types/src/index.ts"],
       "@shared-types/*": ["./packages/shared-types/src/*"],
+      "@schemas": ["./packages/schemas/src/index.ts"],
       "@schemas/*": ["./packages/schemas/src/*"],
+      "@test-fixtures": ["./packages/test-fixtures/src/index.ts"],
       "@test-fixtures/*": ["./packages/test-fixtures/src/*"]
     }
   },
