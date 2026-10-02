@@ -1,0 +1,16 @@
+services:
+  # Optional local staging database for session hand review
+  poker-db:
+    image: postgres:16-alpine
+    container_name: poker_study_lab_db
+    environment:
+      POSTGRES_USER: poker_user
+      POSTGRES_PASSWORD: poker_dev_password
+      POSTGRES_DB: poker_study_lab
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - poker_data:/var/lib/postgresql/data
+
+volumes:
+  poker_data:
