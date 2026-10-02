@@ -48,3 +48,6 @@ lerna-debug.log*
 scratch/
 tmp/
 temp/
+test-results/
+playwright-report/
+

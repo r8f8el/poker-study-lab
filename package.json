@@ -9,7 +9,10 @@
     "build": "npm run typecheck && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "desktop": "electron apps/desktop/electron/main.cjs",
+    "desktop:build": "npm run build && electron apps/desktop/electron/main.cjs"
   },
   "keywords": [],
   "author": "",
@@ -22,10 +25,12 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^44.5.1",
     "jsdom": "^27.0.1",
     "typescript": "^7.0.2",
     "vite": "^6.4.3",

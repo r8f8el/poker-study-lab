@@ -105,7 +105,17 @@ npm test
 uv run --with pytest pytest tests/vision
 ```
 
-### 6. Compilar para produção
+### 6. Executar como Aplicativo Desktop Nativo (Electron)
+```bash
+npm run desktop
+```
+
+### 7. Executar os testes End-to-End (Playwright)
+```bash
+npm run test:e2e
+```
+
+### 8. Compilar para produção
 ```bash
 npm run build
 ```
@@ -114,7 +124,8 @@ npm run build
 
 ## 🧪 Estrutura de Testes Automatizados
 
-O projeto conta com suíte de testes unitários rápidos e determinísticos com Vitest (TypeScript) e Pytest (Python):
+O projeto conta com suíte de testes unitários rápidos e determinísticos com Vitest (TypeScript) e Pytest (Python), além de testes E2E com Playwright:
+- `tests/e2e/poker_lab_ui.spec.ts`: Suíte de testes ponta a ponta (E2E) com Playwright validando a renderização da interface desktop, chaveamento dinâmico de layouts (Suprema, PokerStars, Desktop), calibração visual interativa de ROIs, salvaguarda com modal de consentimento de IA e checklist obrigatório de conformidade no seletor de janelas.
 - `tests/unit/circular_frame_buffer.test.ts`: Testa buffer circular de frames, descarte FIFO de frames obsoletos, limites estritos de memória e medição de latência.
 - `tests/unit/window_lifecycle_monitor.test.ts`: Testa detecção automática de janela minimizada, redimensionada além da tolerância, indisponível ou desautorizada com emissão de alertas.
 - `tests/unit/recommendation_gate.test.ts`: Testa todos os caminhos do `RecommendationGate` (janela desautorizada, pausa, animações ativas, cartas duplicadas, contagem inválida de cartas, baixa confiança, vez de outro jogador).
@@ -146,4 +157,5 @@ O projeto conta com suíte de testes unitários rápidos e determinísticos com 
 - [x] **Incremento 7 — Recommendation Gate Avançado**: Refinamento de checagens multi-campo de integridade (stack negativo, inconsistência de all-in com fichas, contagem mínima de jogadores ativos, validação da soma de apostas vs pote), proteção estrita contra latência de frames obsoletos (`LATENCY_EXCEEDED` > 2000ms) conectada ao `CircularFrameBuffer` em tempo real.
 - [x] **Incremento 8 — Painel de Decisão Interativo**: Matriz interativa de ranges 13x13 (`RangeMatrixPanel.tsx`), seletor de perfis de vilões (Rock/Nit, TAG, LAG, Calling Station, Custom), slider de percentil de range em tempo real, expansor de combinações com exclusão de cartas mortas (`RangeModel.ts`) e cálculo de equity range-vs-hand dinâmico.
 - [x] **Incremento 9 — IA Explicadora**: Serviço desacoplado de mentoria pedagógica e contextualização didática (`AIExplanationService.ts` e `services/explanation_ai/ai_explainer.py`), garantia absoluta de não-interferência na recomendação determinística, motor de heurísticas offline ultrarrápido (0ms), suporte a fallback gracioso sem chaves/rede, card visual sofisticado com métricas de latência e conceitos teóricos (`AIExplanationPanel.tsx`) e 118 testes automatizados passando.
-- [ ] **Incremento 10 — Robustez & Empacotamento**: Empacotamento desktop final e testes end-to-end com Playwright.
+- [x] **Incremento 10 — Robustez & Empacotamento Desktop**: Empacotamento desktop nativo via Electron com IPC isolado e enumeração de janelas do SO, modo HUD transparente e fixado, e suíte completa de testes end-to-end (E2E) com Playwright validando o fluxo de ponta a ponta.
+

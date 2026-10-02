@@ -931,7 +931,7 @@ export const LiveSplitView: React.FC<LiveSplitViewProps> = ({
             minHeight: 460
           }}
         >
-          {lastFrame?.dataUrl ? (
+          {(lastFrame?.dataUrl || isCalibrating) ? (
             (() => {
               const frameAspect = (lastFrame && lastFrame.width && lastFrame.height)
                 ? `${lastFrame.width} / ${lastFrame.height}`
@@ -949,21 +949,24 @@ export const LiveSplitView: React.FC<LiveSplitViewProps> = ({
                     margin: '0 auto',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    background: lastFrame?.dataUrl ? 'transparent' : 'rgba(255, 255, 255, 0.02)'
                   }}
                 >
-                  <img
-                    src={lastFrame.dataUrl}
-                    alt="Captured Poker Frame"
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                      display: 'block',
-                      userSelect: 'none',
-                      pointerEvents: 'none'
-                    }}
-                  />
+                  {lastFrame?.dataUrl && (
+                    <img
+                      src={lastFrame.dataUrl}
+                      alt="Captured Poker Frame"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        display: 'block',
+                        userSelect: 'none',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  )}
 
                   {/* ROI Calibration Overlay Bounding Boxes */}
                   {(showRoiBoxes || isCalibrating) && (

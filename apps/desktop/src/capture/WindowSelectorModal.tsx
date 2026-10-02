@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CaptureSource } from '../../../../packages/shared-types/src';
 import { MOCK_AUTHORIZED_SOURCE } from '../../../../packages/test-fixtures/src';
 import { Monitor, ShieldCheck, X, Play } from 'lucide-react';
+import { ElectronCaptureSource } from '../vite-env';
 
 interface WindowSelectorModalProps {
   isOpen: boolean;
@@ -20,11 +21,27 @@ export const WindowSelectorModal: React.FC<WindowSelectorModalProps> = ({
 }) => {
   const [selectedSourceType, setSelectedSourceType] = useState<'synthetic' | 'native'>('synthetic');
   const [fps, setFps] = useState(15);
+  const [electronSources, setElectronSources] = useState<ElectronCaptureSource[]>([]);
+  const [selectedElectronSourceId, setSelectedElectronSourceId] = useState<string | null>(null);
 
   // Mandatory Safety Checklist state
   const [check1, setCheck1] = useState(false);
   const [check2, setCheck2] = useState(false);
   const [check3, setCheck3] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && window.electronAPI?.getCaptureSources) {
+      window.electronAPI
+        .getCaptureSources()
+        .then(sources => {
+          setElectronSources(sources);
+          if (sources.length > 0) {
+            setSelectedElectronSourceId(sources[0].id);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -34,7 +51,22 @@ export const WindowSelectorModal: React.FC<WindowSelectorModalProps> = ({
     if (!isFormValid) return;
 
     if (selectedSourceType === 'native') {
-      await onRequestNativePicker();
+      if (window.electronAPI && selectedElectronSourceId) {
+        const picked = electronSources.find(s => s.id === selectedElectronSourceId);
+        onSelectAndStart(
+          {
+            id: picked ? picked.id : `native_${Date.now()}`,
+            name: picked ? picked.name : 'Janela Nativa Desktop',
+            type: 'window',
+            isAuthorized: true,
+            appIdentifier: 'com.auth.poker.client',
+            bounds: { x: 0, y: 0, width: 1280, height: 720 }
+          },
+          fps
+        );
+      } else {
+        await onRequestNativePicker();
+      }
       onClose();
     } else {
       onSelectAndStart(MOCK_AUTHORIZED_SOURCE, fps);
@@ -145,6 +177,75 @@ export const WindowSelectorModal: React.FC<WindowSelectorModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Electron Native Window Picker List */}
+          {selectedSourceType === 'native' && electronSources.length > 0 && (
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: 8 }}>
+                Janelas Detectadas no Sistema Operacional ({electronSources.length}):
+              </label>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+                  gap: 10,
+                  maxHeight: 180,
+                  overflowY: 'auto',
+                  padding: 8,
+                  borderRadius: 8,
+                  background: 'rgba(0,0,0,0.3)',
+                  border: '1px solid var(--border-subtle)'
+                }}
+              >
+                {electronSources.map(src => {
+                  const isSelected = selectedElectronSourceId === src.id;
+                  return (
+                    <div
+                      key={src.id}
+                      onClick={() => setSelectedElectronSourceId(src.id)}
+                      style={{
+                        padding: 6,
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        background: isSelected ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${isSelected ? '#38bdf8' : 'rgba(255,255,255,0.08)'}`,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6
+                      }}
+                    >
+                      {src.thumbnail && (
+                        <img
+                          src={src.thumbnail}
+                          alt={src.name}
+                          style={{
+                            width: '100%',
+                            height: 70,
+                            objectFit: 'cover',
+                            borderRadius: 4,
+                            background: '#000'
+                          }}
+                        />
+                      )}
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: isSelected ? 700 : 400,
+                          color: isSelected ? '#38bdf8' : 'var(--text-main)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                        title={src.name}
+                      >
+                        {src.name}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* FPS Slider */}
           <div>
@@ -273,6 +374,7 @@ export const WindowSelectorModal: React.FC<WindowSelectorModalProps> = ({
             className="btn-primary"
             onClick={handleConfirm}
             disabled={!isFormValid}
+            id="btn-confirm-source"
             style={{
               opacity: isFormValid ? 1 : 0.45,
               cursor: isFormValid ? 'pointer' : 'not-allowed'
