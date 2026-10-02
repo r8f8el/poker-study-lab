@@ -9,6 +9,7 @@ export interface AIExplanationOptions {
   apiKey?: string;
   endpoint?: string;
   timeoutMs?: number;
+  externalApiConsent?: boolean;
 }
 
 export class AIExplanationService {
@@ -40,8 +41,8 @@ export class AIExplanationService {
       return gateExplanation;
     }
 
-    // 2. If online AI is enabled and credentials are present, attempt LLM call
-    if (options.enableAI && options.apiKey && options.endpoint) {
+    // 2. If online AI is enabled, explicit consent is granted, and credentials are present
+    if (options.enableAI && options.externalApiConsent && options.apiKey && options.endpoint) {
       try {
         const llmResult = await this.callExternalLLM(request, options, startTime);
         if (llmResult) {
@@ -225,11 +226,33 @@ export class AIExplanationService {
     return { isWet: false, description: 'Seco e desfavorável a draws rápidos (Rainbow)' };
   }
 
+  private isValidEndpoint(endpoint?: string): boolean {
+    if (!endpoint) return false;
+    try {
+      const parsed = new URL(endpoint);
+      const isHttps = parsed.protocol === 'https:';
+      const isLocalhost =
+        parsed.hostname === 'localhost' ||
+        parsed.hostname === '127.0.0.1' ||
+        parsed.hostname === '::1';
+      return isHttps || isLocalhost;
+    } catch {
+      return false;
+    }
+  }
+
   private async callExternalLLM(
     request: AIExplanationRequest,
     options: AIExplanationOptions,
     startTime: number
   ): Promise<AIExplanationResult | null> {
+    if (!this.isValidEndpoint(options.endpoint)) {
+      console.warn(
+        `[AIExplanationService] Insecure external endpoint rejected: ${options.endpoint}. Only HTTPS or localhost endpoints are permitted.`
+      );
+      return null;
+    }
+
     const timeout = options.timeoutMs || 3500;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);

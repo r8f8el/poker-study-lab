@@ -158,6 +158,7 @@ describe('AIExplanationService (Incremento 9)', () => {
     // Passing invalid endpoint to test graceful fallback
     const result = await service.explain(request, {
       enableAI: true,
+      externalApiConsent: true,
       apiKey: 'test-key',
       endpoint: 'http://127.0.0.1:9999/nonexistent-llm',
       timeoutMs: 100
@@ -167,5 +168,73 @@ describe('AIExplanationService (Incremento 9)', () => {
     expect(result.source_label).toBe('offline_heuristic');
     expect(result.is_ai_generated).toBe(false);
     expect(result.concept_summary).toContain('Aposta por Valor Linear');
+  });
+
+  it('deve bloquear chamada externa e usar heurística quando externalApiConsent for falso ou omitido', async () => {
+    const request: AIExplanationRequest = {
+      hand_id: 'hand-007',
+      stage: 'FLOP',
+      hero_cards: ['Ah', 'Kh'],
+      board: ['Qh', 'Jh', '2c'],
+      pot_size: 50,
+      to_call: 0,
+      equity: 0.72,
+      pot_odds: 0,
+      primary_action: 'bet',
+      action_frequencies: { bet: 1.0 },
+      opponent_range_profile: 'TAG',
+      strategic_factors: ['Nut flush draw + gutshot'],
+      is_gate_open: true
+    };
+
+    // enableAI is true, credentials present, but externalApiConsent is false
+    const resultNoConsent = await service.explain(request, {
+      enableAI: true,
+      externalApiConsent: false,
+      apiKey: 'secret-key',
+      endpoint: 'https://api.external-ai.com/v1/chat'
+    });
+
+    expect(resultNoConsent.source_label).toBe('offline_heuristic');
+    expect(resultNoConsent.is_ai_generated).toBe(false);
+
+    // externalApiConsent omitted entirely
+    const resultOmittedConsent = await service.explain(request, {
+      enableAI: true,
+      apiKey: 'secret-key',
+      endpoint: 'https://api.external-ai.com/v1/chat'
+    });
+
+    expect(resultOmittedConsent.source_label).toBe('offline_heuristic');
+    expect(resultOmittedConsent.is_ai_generated).toBe(false);
+  });
+
+  it('deve rejeitar endpoints externos HTTP inseguros em redes públicas (apenas HTTPS ou localhost)', async () => {
+    const request: AIExplanationRequest = {
+      hand_id: 'hand-008',
+      stage: 'RIVER',
+      hero_cards: ['As', 'Ks'],
+      board: ['Qs', 'Js', 'Ts', '2c', '3d'],
+      pot_size: 100,
+      to_call: 0,
+      equity: 1.0,
+      pot_odds: 0,
+      primary_action: 'bet',
+      action_frequencies: { bet: 1.0 },
+      opponent_range_profile: 'TAG',
+      strategic_factors: ['Royal Flush'],
+      is_gate_open: true
+    };
+
+    // Insecure HTTP on a remote public host must be rejected
+    const resultInsecure = await service.explain(request, {
+      enableAI: true,
+      externalApiConsent: true,
+      apiKey: 'secret-key',
+      endpoint: 'http://insecure-remote-domain.com/v1/chat'
+    });
+
+    expect(resultInsecure.source_label).toBe('offline_heuristic');
+    expect(resultInsecure.is_ai_generated).toBe(false);
   });
 });

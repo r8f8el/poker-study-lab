@@ -197,6 +197,10 @@ export const AppSettingsSchema = z.object({
   temporalWindowFrames: z.number().int().min(3).max(30).default(7),
   temporalMinConsensusFrames: z.number().int().min(2).max(25).default(5),
   enableAIExplanations: z.boolean().default(false),
+  aiProvider: z.enum(['offline_heuristic', 'custom_api']).default('offline_heuristic').optional(),
+  externalApiConsent: z.boolean().default(false).optional(),
+  aiApiKey: z.string().optional(),
+  aiApiEndpoint: z.string().url().optional().or(z.literal('')),
   theme: z.enum(['dark', 'midnight', 'emerald']).default('midnight'),
   activeProfileId: z.string().default('default_profile')
 });

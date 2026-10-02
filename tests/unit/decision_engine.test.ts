@@ -128,4 +128,54 @@ describe('Incremento 6 — DeterministicDecisionEngine', () => {
     expect(rec.frequencies.bet_66 || rec.frequencies.bet_33).toBeGreaterThan(0);
     expect(rec.equity_estimate).toBeGreaterThan(0.70);
   });
+
+  it('recommends fold when facing a bet with severe negative equity edge (-EV)', () => {
+    const trashState: GameState = {
+      ...MOCK_VALID_FLOP_STATE,
+      hero: {
+        ...MOCK_VALID_FLOP_STATE.hero,
+        cards: ['2c', '7d']
+      },
+      board: ['Ah', 'Kh', 'Qd'],
+      action_history: [
+        {
+          street: 'FLOP',
+          player: 'Villain',
+          action: 'bet',
+          amount: 80,
+          potBefore: 100,
+          timestamp: new Date().toISOString()
+        }
+      ]
+    };
+
+    const rec = DeterministicDecisionEngine.evaluate(trashState, allowedGate);
+    expect(rec.action).toBe('fold');
+    expect(rec.frequencies.fold).toBeGreaterThan(0.5);
+  });
+
+  it('recommends raise when facing a small bet with monster top set (+EV)', () => {
+    const monsterFacingBet: GameState = {
+      ...MOCK_VALID_FLOP_STATE,
+      hero: {
+        ...MOCK_VALID_FLOP_STATE.hero,
+        cards: ['As', 'Ah']
+      },
+      board: ['Ad', '8c', '2s'],
+      action_history: [
+        {
+          street: 'FLOP',
+          player: 'Villain',
+          action: 'bet',
+          amount: 20,
+          potBefore: 100,
+          timestamp: new Date().toISOString()
+        }
+      ]
+    };
+
+    const rec = DeterministicDecisionEngine.evaluate(monsterFacingBet, allowedGate);
+    expect(rec.action).toBe('raise');
+    expect(rec.frequencies.raise).toBeGreaterThan(0.5);
+  });
 });

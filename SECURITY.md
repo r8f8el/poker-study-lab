@@ -29,3 +29,16 @@ O **Poker Study Lab** é uma ferramenta de estudo, análise e aprimoramento téc
 - Frames capturados **não são gravados em disco por padrão**.
 - O buffer de visualização retém apenas o frame mais recente em formato não persistido para renderização de overlay.
 - Ao clicar em "Desligar" ou "Pausar", todos os buffers voláteis são zerados imediatamente.
+
+---
+
+## 4. Fronteira de IA e Isolamento de Privacidade (AI Privacy Safeguards)
+
+O subsistema pedagógico de inteligência artificial opera com salvaguardas estritas de privacidade e separação física de dados:
+
+1. **Heurística Offline como Padrão**: Por padrão, o Poker Study Lab opera com um motor heurístico 100% determinístico e offline. Nenhuma requisição de rede ou envio de dados ocorre durante o uso padrão.
+2. **Consentimento Explícito Obrigatório (`externalApiConsent`)**: Qualquer conexão com provedores externos de LLM (ex.: OpenAI, Anthropic, Google) exige ativação explícita de consentimento na interface de configurações. Sem esse consentimento, chamadas externas são rejeitadas silenciosamente e o motor recorre instantaneamente à heurística local.
+3. **Isolamento Estrito de Imagens (Zero Image Egress)**: **Nenhuma imagem, frame bruto, screenshot ou recorte visual é transmitido para a rede em hipótese alguma.** Apenas metadados derivados, discretos e anonimizados (cartas normalizadas como `["As", "Kh"]`, pot odds numéricos, decisão determinística pré-calculada) são transmitidos para fins didáticos.
+4. **Trânsito Criptografado Obrigatório**: Endpoints de APIs externas aceitam exclusivamente o protocolo `https://`. Endpoints em texto claro (`http://`) são rejeitados pelo cliente, com exceção de instâncias locais de inferência (`localhost` ou `127.0.0.1`, como Ollama/vLLM).
+5. **Credenciais Efêmeras de Sessão**: Chaves de API de terceiros inseridas pelo usuário permanecem na memória transitória da aplicação durante a sessão e **não são gravadas em texto claro no disco** (`localStorage`), prevenindo vazamentos acidentais por inspeção de arquivos ou scripts.
+

@@ -398,9 +398,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   {formData.aiProvider === 'custom_api' && (
                     <>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 10,
+                          padding: 12,
+                          borderRadius: 8,
+                          background: 'rgba(234, 179, 8, 0.08)',
+                          border: '1px solid rgba(234, 179, 8, 0.25)'
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          id="chk-external-api-consent"
+                          checked={!!formData.externalApiConsent}
+                          onChange={e => setFormData({ ...formData, externalApiConsent: e.target.checked })}
+                          style={{ marginTop: 2, transform: 'scale(1.2)', cursor: 'pointer' }}
+                        />
+                        <label htmlFor="chk-external-api-consent" style={{ fontSize: 12, color: 'var(--text-main)', cursor: 'pointer' }}>
+                          <strong style={{ color: '#eab308', display: 'block', marginBottom: 2 }}>
+                            Consentimento de Envio Externo (Salvaguarda de Privacidade):
+                          </strong>
+                          Autorizo o envio de metadados anonimizados da mão (cartas normalizadas, pot odds, ação determinística calculada) para a API configurada abaixo.
+                          <span style={{ display: 'block', marginTop: 4, color: 'var(--text-muted)' }}>
+                            <strong>Garantia Estrita:</strong> Nenhuma imagem bruta, captura de tela ou frame da mesa é transmitido para a rede em hipótese alguma.
+                          </span>
+                        </label>
+                      </div>
+
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                          Endpoint da API:
+                          Endpoint da API (Exige HTTPS ou localhost):
                         </label>
                         <input
                           type="text"
@@ -420,7 +449,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                          Chave de API (Armazenada localmente):
+                          Chave de API (Protegida na Sessão - não gravada em disco):
                         </label>
                         <input
                           type="password"

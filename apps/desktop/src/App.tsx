@@ -51,7 +51,17 @@ const INITIAL_SETTINGS: AppSettings = {
 };
 
 export const App: React.FC = () => {
-  const [settings, setSettings] = useState<AppSettings>(INITIAL_SETTINGS);
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    try {
+      const saved = localStorage.getItem('poker_study_lab_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Security: Never load plaintext API key from disk into memory
+        return { ...INITIAL_SETTINGS, ...parsed, aiApiKey: '' };
+      }
+    } catch {}
+    return INITIAL_SETTINGS;
+  });
   const [activeProfile, setActiveProfile] = useState<TableLayoutProfile>(() => {
     try {
       const saved = localStorage.getItem('poker_study_lab_calibrated_profile');
@@ -461,6 +471,7 @@ export const App: React.FC = () => {
     aiExplainerRef.current
       .explain(request, {
         enableAI: settings.enableAIExplanations,
+        externalApiConsent: settings.externalApiConsent,
         apiKey: settings.aiApiKey,
         endpoint: settings.aiApiEndpoint
       })
@@ -486,6 +497,7 @@ export const App: React.FC = () => {
     recommendation.pot_odds,
     opponentProfile.id,
     settings.enableAIExplanations,
+    settings.externalApiConsent,
     settings.aiProvider,
     settings.aiApiKey,
     settings.aiApiEndpoint
@@ -512,6 +524,7 @@ export const App: React.FC = () => {
     aiExplainerRef.current
       .explain(request, {
         enableAI: settings.enableAIExplanations,
+        externalApiConsent: settings.externalApiConsent,
         apiKey: settings.aiApiKey,
         endpoint: settings.aiApiEndpoint
       })
@@ -582,7 +595,16 @@ export const App: React.FC = () => {
         activeProfile={activeProfile}
         frameDataUrl={lastFrame?.dataUrl}
         onClose={() => setIsSettingsOpen(false)}
-        onSave={newSettings => setSettings(newSettings)}
+        onSave={newSettings => {
+          setSettings(newSettings);
+          try {
+            // Security safeguard: Strip sensitive API key before writing to localStorage
+            const { aiApiKey: _strippedKey, ...safeSettingsToPersist } = newSettings;
+            localStorage.setItem('poker_study_lab_settings', JSON.stringify(safeSettingsToPersist));
+          } catch (e) {
+            console.warn('Failed to persist settings:', e);
+          }
+        }}
         onSaveProfile={handleUpdateProfile}
       />
 

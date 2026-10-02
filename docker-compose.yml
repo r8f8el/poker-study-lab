@@ -1,5 +1,10 @@
+# ==============================================================================
+# Poker Study Lab — Optional Developer Infrastructure
+# Note: Poker Study Lab runs 100% standalone out-of-the-box (in-memory / SQLite).
+# This docker-compose stack is strictly OPTIONAL for developer persistence benchmarking
+# and local session hand review.
+# ==============================================================================
 services:
-  # Optional local staging database for session hand review
   poker-db:
     image: postgres:16-alpine
     container_name: poker_study_lab_db

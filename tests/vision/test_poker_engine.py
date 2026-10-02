@@ -53,3 +53,27 @@ def test_decision_engine_recommendations():
     assert res_allowed["action"] == "bet"
     assert "bet_33" in res_allowed["frequencies"] or "bet_66" in res_allowed["frequencies"]
     assert res_allowed["equity_estimate"] > 0.70
+
+    # Facing bet with -EV trash hand -> fold
+    trash_state = {
+        "hero_cards": ["2c", "7d"],
+        "board": ["Ah", "Kh", "Qd"],
+        "pot": 100.0,
+        "hero_position": "BTN",
+        "call_amount": 80.0,
+    }
+    res_trash = evaluate_decision(trash_state, gate_allowed=True)
+    assert res_trash["action"] == "fold"
+    assert res_trash["frequencies"]["fold"] > 0.5
+
+    # Facing small bet with monster top set -> raise
+    monster_facing_bet = {
+        "hero_cards": ["As", "Ah"],
+        "board": ["Ad", "8c", "2s"],
+        "pot": 100.0,
+        "hero_position": "BTN",
+        "call_amount": 20.0,
+    }
+    res_raise = evaluate_decision(monster_facing_bet, gate_allowed=True)
+    assert res_raise["action"] == "raise"
+    assert res_raise["frequencies"]["raise"] > 0.5

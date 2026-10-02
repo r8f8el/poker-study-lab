@@ -85,7 +85,7 @@ export class DeterministicDecisionEngine {
     }
 
     const isStrongHand = handEval.categoryRank >= 3; // Two pair or better
-    const isMonsterHand = handEval.categoryRank >= 5; // Straight or better
+    const isMonsterHand = handEval.categoryRank >= 4; // Three of a kind (Set) or better
 
     if (callAmount === 0) {
       // Situation A: Can check freely

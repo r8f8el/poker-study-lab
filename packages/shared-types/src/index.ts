@@ -298,6 +298,7 @@ export interface AppSettings {
   temporalMinConsensusFrames: number; // e.g. 5
   enableAIExplanations: boolean;
   aiProvider?: 'offline_heuristic' | 'custom_api';
+  externalApiConsent?: boolean;
   aiApiKey?: string;
   aiApiEndpoint?: string;
   theme: 'dark' | 'midnight' | 'emerald';
