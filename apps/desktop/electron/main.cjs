@@ -1,11 +1,61 @@
 const { app, BrowserWindow, ipcMain, desktopCapturer } = require('electron');
 const path = require('path');
+const http = require('http');
+const fs = require('fs');
 
 let mainWindow = null;
 let isOverlayMode = false;
 let savedNormalBounds = null;
+let localServer = null;
 
-function createWindow() {
+function createLocalStaticServer(distDir) {
+  const mimeTypes = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.woff2': 'font/woff2'
+  };
+
+  const server = http.createServer((req, res) => {
+    let reqPath = decodeURI(req.url.split('?')[0]);
+    if (reqPath === '/' || !reqPath) reqPath = '/index.html';
+
+    let filePath = path.join(distDir, reqPath);
+    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+      filePath = path.join(distDir, 'index.html');
+    }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        res.end('Not found');
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'no-cache'
+      });
+      res.end(data);
+    });
+  });
+
+  return new Promise(resolve => {
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      resolve({ server, port, url: `http://127.0.0.1:${port}` });
+    });
+  });
+}
+
+async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -26,31 +76,33 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    mainWindow.focus();
   });
 
-  const fs = require('fs');
-  const distPath = path.join(__dirname, '../../../dist/index.html');
+  mainWindow.webContents.on('console-message', (_event, _level, message, line, sourceId) => {
+    console.log(`[Renderer] ${message} (${sourceId}:${line})`);
+  });
 
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL).catch(() => {
-      if (fs.existsSync(distPath)) mainWindow.loadFile(distPath);
-    });
-  } else if (fs.existsSync(distPath)) {
-    mainWindow.loadFile(distPath);
-  } else {
-    mainWindow.loadURL('http://localhost:5173').catch(() => {
-      if (fs.existsSync(distPath)) mainWindow.loadFile(distPath);
-    });
-  }
+  const distDir = path.join(__dirname, '../../../dist');
 
-  mainWindow.webContents.on('did-fail-load', () => {
-    if (fs.existsSync(distPath)) {
-      mainWindow.loadFile(distPath);
+  try {
+    if (process.env.VITE_DEV_SERVER_URL) {
+      await mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+    } else {
+      const local = await createLocalStaticServer(distDir);
+      localServer = local.server;
+      await mainWindow.loadURL(local.url);
     }
-  });
+  } catch (err) {
+    console.error('[Electron Main] Failed to load application:', err);
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    if (localServer) {
+      localServer.close();
+      localServer = null;
+    }
   });
 }
 
@@ -125,6 +177,10 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  if (localServer) {
+    localServer.close();
+    localServer = null;
+  }
   if (process.platform !== 'darwin') {
     app.quit();
   }
