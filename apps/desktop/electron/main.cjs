@@ -28,20 +28,26 @@ function createWindow() {
     mainWindow.show();
   });
 
-  // Determine URL: dev server or production bundle
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-  const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+  const fs = require('fs');
+  const distPath = path.join(__dirname, '../../../dist/index.html');
 
-  if (isDev && !process.env.TEST_DIST) {
-    mainWindow.loadURL(devServerUrl).catch(() => {
-      // If dev server not yet responding, fallback to dist
-      const distPath = path.join(__dirname, '../../../dist/index.html');
-      mainWindow.loadFile(distPath);
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL).catch(() => {
+      if (fs.existsSync(distPath)) mainWindow.loadFile(distPath);
     });
-  } else {
-    const distPath = path.join(__dirname, '../../../dist/index.html');
+  } else if (fs.existsSync(distPath)) {
     mainWindow.loadFile(distPath);
+  } else {
+    mainWindow.loadURL('http://localhost:5173').catch(() => {
+      if (fs.existsSync(distPath)) mainWindow.loadFile(distPath);
+    });
   }
+
+  mainWindow.webContents.on('did-fail-load', () => {
+    if (fs.existsSync(distPath)) {
+      mainWindow.loadFile(distPath);
+    }
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
