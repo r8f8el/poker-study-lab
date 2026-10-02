@@ -75,26 +75,7 @@ export class WindowMediaStreamCapture extends BaseScreenCapture {
       this.mediaStream = stream;
       this.activeSource = source;
       this.windowMonitor.setMonitoredSource(source);
-
-      // Attach track lifecycle handlers
-      videoTrack.addEventListener('ended', () => {
-        this.windowMonitor.checkWindowHealth(null, false);
-        this.stop();
-      });
-
-      videoTrack.addEventListener('mute', () => {
-        this.windowMonitor.checkWindowHealth({ x: 0, y: 0, width: 0, height: 0 }, true);
-        this.pause();
-      });
-
-      videoTrack.addEventListener('unmute', () => {
-        const currentSettings = videoTrack.getSettings();
-        this.windowMonitor.checkWindowHealth(
-          { x: 0, y: 0, width: currentSettings.width || 1280, height: currentSettings.height || 720 },
-          true
-        );
-        this.resume();
-      });
+      this.attachTrackHandlers(stream);
 
       return source;
     } catch (err: any) {
@@ -103,6 +84,30 @@ export class WindowMediaStreamCapture extends BaseScreenCapture {
       }
       throw err;
     }
+  }
+
+  private attachTrackHandlers(stream: MediaStream): void {
+    const videoTrack = stream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    videoTrack.addEventListener('ended', () => {
+      this.windowMonitor.checkWindowHealth(null, false);
+      this.stop();
+    });
+
+    videoTrack.addEventListener('mute', () => {
+      this.windowMonitor.checkWindowHealth({ x: 0, y: 0, width: 0, height: 0 }, true);
+      this.pause();
+    });
+
+    videoTrack.addEventListener('unmute', () => {
+      const currentSettings = videoTrack.getSettings();
+      this.windowMonitor.checkWindowHealth(
+        { x: 0, y: 0, width: currentSettings.width || 1280, height: currentSettings.height || 720 },
+        true
+      );
+      this.resume();
+    });
   }
 
   public async start(source: CaptureSource, fps: number): Promise<void> {
@@ -119,8 +124,33 @@ export class WindowMediaStreamCapture extends BaseScreenCapture {
     this.ringBuffer.clear();
 
     if (!this.mediaStream) {
-      const selected = await this.select_source();
-      if (!selected) return;
+      if (source.id.startsWith('window:') || source.id.startsWith('screen:')) {
+        try {
+          const constraints: any = {
+            audio: false,
+            video: {
+              mandatory: {
+                chromeMediaSource: 'desktop',
+                chromeMediaSourceId: source.id,
+                minWidth: 480,
+                maxWidth: 1920,
+                minHeight: 480,
+                maxHeight: 1080
+              }
+            }
+          };
+          const stream = await (navigator.mediaDevices as any).getUserMedia(constraints);
+          this.mediaStream = stream;
+          this.attachTrackHandlers(stream);
+        } catch (err) {
+          console.error('[WindowMediaStreamCapture] Failed to get stream for electron source:', err);
+          const selected = await this.select_source();
+          if (!selected) return;
+        }
+      } else {
+        const selected = await this.select_source();
+        if (!selected) return;
+      }
     }
 
     if (this.videoElement && this.mediaStream) {

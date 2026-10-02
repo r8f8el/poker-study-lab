@@ -281,9 +281,19 @@ export const App: React.FC = () => {
       return;
     }
     try {
+      const isNativeSource =
+        activeSource.id.startsWith('window:') ||
+        activeSource.id.startsWith('screen:') ||
+        activeSource.id.startsWith('native_');
+
+      if (isNativeSource && !(captureAdapterRef.current instanceof WindowMediaStreamCapture)) {
+        setupAdapter(new WindowMediaStreamCapture(5));
+      }
+
       windowMonitorRef.current.setMonitoredSource(activeSource);
       ringBufferRef.current.clear();
       resetLiveState();
+      setGameState(prev => ({ ...prev, app_id: activeSource.appIdentifier }));
       await captureAdapterRef.current.start(activeSource, settings.fps);
       logEvent('APP_DETECTED', { appIdentifier: activeSource.appIdentifier }, 1.0);
       logEvent('TABLE_DETECTED', { tableId: gameState.table_id }, 0.99);
@@ -297,9 +307,26 @@ export const App: React.FC = () => {
     setSettings(prev => ({ ...prev, fps: targetFps }));
     windowMonitorRef.current.setMonitoredSource(source);
 
-    const adapter = new SyntheticPokerCapture();
+    // Auto-detect layout from window title
+    const lowerName = (source.name || '').toLowerCase();
+    if (lowerName.includes('suprema')) {
+      handleUpdateProfile(SUPREMA_POKER_LAYOUT_PROFILE);
+    } else if (lowerName.includes('pokerstars') || lowerName.includes('stars')) {
+      handleUpdateProfile(POKERSTARS_LAYOUT_PROFILE);
+    }
+
+    const isNativeSource =
+      source.id.startsWith('window:') ||
+      source.id.startsWith('screen:') ||
+      source.id.startsWith('native_');
+
+    const adapter: BaseScreenCapture = isNativeSource
+      ? new WindowMediaStreamCapture(5)
+      : new SyntheticPokerCapture();
+
     setupAdapter(adapter);
     resetLiveState();
+    setGameState(prev => ({ ...prev, app_id: source.appIdentifier }));
     await adapter.start(source, targetFps);
     logEvent('APP_DETECTED', { appIdentifier: source.appIdentifier }, 1.0);
   };
@@ -312,6 +339,13 @@ export const App: React.FC = () => {
       setActiveSource(source);
       windowMonitorRef.current.setMonitoredSource(source);
       resetLiveState();
+      setGameState(prev => ({ ...prev, app_id: source.appIdentifier }));
+      const lowerName = (source.name || '').toLowerCase();
+      if (lowerName.includes('suprema')) {
+        handleUpdateProfile(SUPREMA_POKER_LAYOUT_PROFILE);
+      } else if (lowerName.includes('pokerstars') || lowerName.includes('stars')) {
+        handleUpdateProfile(POKERSTARS_LAYOUT_PROFILE);
+      }
       await nativeCapture.start(source, settings.fps);
       logEvent('APP_DETECTED', { appIdentifier: source.appIdentifier }, 1.0);
     }

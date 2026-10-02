@@ -19,7 +19,9 @@ export const WindowSelectorModal: React.FC<WindowSelectorModalProps> = ({
   onSelectAndStart,
   onRequestNativePicker
 }) => {
-  const [selectedSourceType, setSelectedSourceType] = useState<'synthetic' | 'native'>('synthetic');
+  const [selectedSourceType, setSelectedSourceType] = useState<'synthetic' | 'native'>(() => {
+    return typeof window !== 'undefined' && window.electronAPI ? 'native' : 'synthetic';
+  });
   const [fps, setFps] = useState(15);
   const [electronSources, setElectronSources] = useState<ElectronCaptureSource[]>([]);
   const [selectedElectronSourceId, setSelectedElectronSourceId] = useState<string | null>(null);
@@ -36,7 +38,14 @@ export const WindowSelectorModal: React.FC<WindowSelectorModalProps> = ({
         .then(sources => {
           setElectronSources(sources);
           if (sources.length > 0) {
-            setSelectedElectronSourceId(sources[0].id);
+            setSelectedSourceType('native');
+            const pokerWindow = sources.find(
+              s =>
+                s.name.toLowerCase().includes('suprema') ||
+                s.name.toLowerCase().includes('pokerstars') ||
+                s.name.toLowerCase().includes('poker')
+            );
+            setSelectedElectronSourceId(pokerWindow ? pokerWindow.id : sources[0].id);
           }
         })
         .catch(() => {});
@@ -50,7 +59,7 @@ export const WindowSelectorModal: React.FC<WindowSelectorModalProps> = ({
   const handleConfirm = async () => {
     if (!isFormValid) return;
 
-    if (selectedSourceType === 'native') {
+    if (selectedSourceType === 'native' || (window.electronAPI && selectedElectronSourceId)) {
       if (window.electronAPI && selectedElectronSourceId) {
         const picked = electronSources.find(s => s.id === selectedElectronSourceId);
         onSelectAndStart(
@@ -202,7 +211,10 @@ export const WindowSelectorModal: React.FC<WindowSelectorModalProps> = ({
                   return (
                     <div
                       key={src.id}
-                      onClick={() => setSelectedElectronSourceId(src.id)}
+                      onClick={() => {
+                        setSelectedSourceType('native');
+                        setSelectedElectronSourceId(src.id);
+                      }}
                       style={{
                         padding: 6,
                         borderRadius: 8,
