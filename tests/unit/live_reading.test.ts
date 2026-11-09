@@ -85,10 +85,14 @@ describe('mergeVisionIntoGameState', () => {
     boardCards: [],
     boardConfidence: 1,
     potValue: null,
+    potConfidence: 0,
     street: 'PREFLOP',
     confidence: 0.88,
     temporalConsistency: 0.99,
     isAnimationActive: false,
+    isHeroTurn: false,
+    availableActions: [],
+    observedBadges: [],
     slotsDebug: [],
     ...overrides
   });

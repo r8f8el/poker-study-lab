@@ -25,8 +25,9 @@ export function mergeVisionIntoGameState(
     };
   }
 
-  const potKnown = detection.potValue !== null && detection.potValue > 0;
+  const potKnown = detection.potValue !== null && detection.potValue > 0 && detection.potConfidence >= 0.55;
   const pot = potKnown ? (detection.potValue as number) : prev.pot;
+  const heroTurnKnown = detection.isHeroTurn === true && detection.availableActions.length > 0;
 
   return {
     ...prev,
@@ -38,6 +39,8 @@ export function mergeVisionIntoGameState(
     pot,
     street: detection.street,
     status: nextStatus,
+    active_player: heroTurnKnown ? 'hero' : detection.isHeroTurn === false ? 'waiting' : prev.active_player,
+    available_actions: heroTurnKnown ? detection.availableActions : detection.isHeroTurn === false ? [] : prev.available_actions,
     isAnimationActive: false,
     confidence: {
       ...prev.confidence,
@@ -50,7 +53,7 @@ export function mergeVisionIntoGameState(
         confidence: detection.boardConfidence
       },
       pot: potKnown
-        ? { value: pot, confidence: 0.95 }
+        ? { value: pot, confidence: detection.potConfidence }
         : prev.confidence.pot,
       temporal_consistency: detection.temporalConsistency,
       overall_confidence: detection.confidence

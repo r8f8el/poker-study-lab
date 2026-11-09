@@ -259,6 +259,8 @@ export const App: React.FC = () => {
       street: 'PREFLOP',
       action_history: [],
       players: [],
+      active_player: 'waiting',
+      available_actions: [],
       confidence: {
         ...prev.confidence,
         hero_cards: [{ value: '', confidence: 0 }, { value: '', confidence: 0 }],
