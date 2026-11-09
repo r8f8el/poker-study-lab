@@ -4,6 +4,7 @@ import * as zlib from 'zlib';
 import * as path from 'path';
 import { paintDigitText } from '../../apps/desktop/src/vision/NumberOcr';
 import { paintBadgeWord, perceiveTable } from '../../apps/desktop/src/vision/tablePerception';
+import { resolveLiveCards } from '../../apps/desktop/src/vision/resolveLiveCards';
 
 function feltScene(width: number, height: number): Uint8ClampedArray {
   const pixels = new Uint8ClampedArray(width * height * 4);
@@ -109,6 +110,22 @@ describe('table perception — find objects, then recognize', () => {
     expect(result.heroButtons.isHeroTurn).toBe(false);
     const actions = result.badges.map(badge => badge.action).sort();
     expect(actions).toEqual(['call', 'fold', 'raise']);
+  });
+
+  it('reads the live Suprema flop window: 3d 9c Js, pot 90, hero Ad Td', () => {
+    const imagePath = path.resolve(__dirname, '../../packages/test-fixtures/assets/suprema_live_flop.png');
+    const { width, height, pixels } = decodePNG(imagePath);
+    const result = perceiveTable(pixels, width, height);
+    const reading = resolveLiveCards(result.heroOutputs, result.boardOutputs, undefined, 1);
+    const detail = `hero=${result.heroCards.join(' ')} board=${result.boardCards.join(' ')} pot=${result.potValue} raw=${result.potRaw} street=${reading.street}`;
+    expect(reading.street, detail).toBe('FLOP');
+    expect(result.boardCards, detail).toEqual(['3d', '9c', 'Js']);
+    expect(reading.boardCards, detail).toEqual(['3d', '9c', 'Js']);
+    expect(result.heroCards, detail).toEqual(['Ad', 'Td']);
+    expect(result.potValue, detail).toBe(90);
+    expect(result.potValue).not.toBe(47);
+    expect(result.heroButtons.isHeroTurn).toBe(false);
+    expect(result.confidence).not.toBe(0.95);
   });
 
   it('does not publish a fake pot or a fake 0.95 on the saved Suprema desktop fixture', () => {

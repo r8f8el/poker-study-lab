@@ -264,6 +264,218 @@ export function paintDigitText(
   }
 }
 
+function isBrightInk(r: number, g: number, b: number): boolean {
+  const white = r > 185 && g > 185 && b > 185;
+  const gold = r > 160 && g > 120 && b < 150 && r > b * 1.2;
+  return white || gold;
+}
+
+/**
+ * Reads a clean money line by shape: holes and tails. Suprema's white "90,00"
+ * does not match the 5×7 templates (they returned 26.66). A one-hole glyph
+ * with a right-hand tail is 9; a centered hole with no tail is 0.
+ */
+export function recognizeStructuredMoney(
+  pixelData: Uint8ClampedArray,
+  width: number,
+  height: number
+): NumberOcrResult {
+  if (width < 8 || height < 6) return { rawText: '', value: null, confidence: 0, glyphCount: 0 };
+  const binary = new Uint8Array(width * height);
+  let ink = 0;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      if (isBrightInk(pixelData[i], pixelData[i + 1], pixelData[i + 2])) {
+        binary[y * width + x] = 1;
+        ink++;
+      }
+    }
+  }
+  if (ink < 12) return { rawText: '', value: null, confidence: 0, glyphCount: 0 };
+
+  const columns = new Int32Array(width);
+  for (let x = 0; x < width; x++) {
+    for (let y = 0; y < height; y++) if (binary[y * width + x]) columns[x]++;
+  }
+
+  interface Glyph { start: number; end: number; minY: number; maxY: number }
+  const glyphs: Glyph[] = [];
+  let x = 0;
+  while (x < width) {
+    while (x < width && columns[x] === 0) x++;
+    if (x >= width) break;
+    const start = x;
+    while (x < width && columns[x] > 0) x++;
+    let minY = height;
+    let maxY = 0;
+    for (let gy = 0; gy < height; gy++) {
+      for (let gx = start; gx < x; gx++) {
+        if (binary[gy * width + gx]) {
+          if (gy < minY) minY = gy;
+          if (gy > maxY) maxY = gy;
+        }
+      }
+    }
+    if (x - start >= 1 && maxY >= minY) glyphs.push({ start, end: x - 1, minY, maxY });
+  }
+  if (glyphs.length === 0) return { rawText: '', value: null, confidence: 0, glyphCount: 0 };
+
+  const heights = glyphs.map(g => g.maxY - g.minY + 1).sort((a, b) => a - b);
+  const medianH = heights[Math.floor(heights.length / 2)];
+
+  let text = '';
+  let recognized = 0;
+  for (const glyph of glyphs) {
+    const gh = glyph.maxY - glyph.minY + 1;
+    const gw = glyph.end - glyph.start + 1;
+    if (gw <= 2 && gh <= Math.max(2, medianH * 0.45) && glyph.minY >= height * 0.55) {
+      text += '.';
+      continue;
+    }
+    if (gh < 5 || gw < 2) continue;
+    const digit = classifyDigit(binary, width, glyph.start, glyph.minY, gw, gh);
+    if (!digit) continue;
+    text += digit;
+    recognized++;
+  }
+
+  const value = interpretMoney(text, recognized >= 2 ? 0.9 : 0);
+  return {
+    rawText: text,
+    value,
+    confidence: value === null ? 0 : 0.9,
+    glyphCount: recognized
+  };
+}
+
+function classifyDigit(
+  binary: Uint8Array,
+  stride: number,
+  x0: number,
+  y0: number,
+  gw: number,
+  gh: number
+): string {
+  const holes = countHoles(binary, stride, x0, y0, gw, gh);
+  let bottomRight = 0;
+  let topHole = false;
+  const holeRows = holeRowMask(binary, stride, x0, y0, gw, gh);
+  for (let y = 0; y < gh; y++) {
+    for (let x = 0; x < gw; x++) {
+      if (!binary[(y0 + y) * stride + (x0 + x)]) continue;
+      if (y > gh * 0.72 && x > gw * 0.55) bottomRight++;
+    }
+    if (holeRows[y] && y < gh * 0.62) topHole = true;
+  }
+  if (gw < gh * 0.38) return '1';
+  if (holes >= 2) return '8';
+  let holeMin = gh;
+  let holeMax = -1;
+  for (let y = 0; y < gh; y++) {
+    if (!holeRows[y]) continue;
+    if (y < holeMin) holeMin = y;
+    if (y > holeMax) holeMax = y;
+  }
+  const holeReachesBottom = holeMax > gh * 0.72;
+  if (holes === 1 && holeReachesBottom) return '0';
+  if (holes === 1 && topHole && !holeReachesBottom && bottomRight > 2) return '9';
+  if (holes === 1 && holeMin > gh * 0.35) return '6';
+  if (holes === 1) return '0';
+  return '';
+}
+
+function holeRowMask(
+  binary: Uint8Array,
+  stride: number,
+  x0: number,
+  y0: number,
+  gw: number,
+  gh: number
+): boolean[] {
+  const rows = new Array(gh).fill(false);
+  const seen = floodOutside(binary, stride, x0, y0, gw, gh);
+  for (let y = 1; y < gh - 1; y++) {
+    for (let x = 1; x < gw - 1; x++) {
+      const i = (y0 + y) * stride + (x0 + x);
+      if (!binary[i] && !seen[y * gw + x]) rows[y] = true;
+    }
+  }
+  return rows;
+}
+
+function countHoles(
+  binary: Uint8Array,
+  stride: number,
+  x0: number,
+  y0: number,
+  gw: number,
+  gh: number
+): number {
+  const seen = floodOutside(binary, stride, x0, y0, gw, gh);
+  const used = new Uint8Array(gw * gh);
+  let holes = 0;
+  for (let y = 0; y < gh; y++) {
+    for (let x = 0; x < gw; x++) {
+      const local = y * gw + x;
+      if (binary[(y0 + y) * stride + (x0 + x)] || seen[local] || used[local]) continue;
+      holes++;
+      const stack = [local];
+      used[local] = 1;
+      while (stack.length) {
+        const cur = stack.pop() as number;
+        for (const n of [cur - 1, cur + 1, cur - gw, cur + gw]) {
+          if (n < 0 || n >= used.length || used[n]) continue;
+          const nx = n % gw;
+          const ny = (n - nx) / gw;
+          if (nx < 0 || nx >= gw || ny < 0 || ny >= gh) continue;
+          if (binary[(y0 + ny) * stride + (x0 + nx)] || seen[n]) continue;
+          used[n] = 1;
+          stack.push(n);
+        }
+      }
+    }
+  }
+  return holes;
+}
+
+function floodOutside(
+  binary: Uint8Array,
+  stride: number,
+  x0: number,
+  y0: number,
+  gw: number,
+  gh: number
+): Uint8Array {
+  const seen = new Uint8Array(gw * gh);
+  const stack: number[] = [];
+  const push = (x: number, y: number) => {
+    if (x < 0 || y < 0 || x >= gw || y >= gh) return;
+    const local = y * gw + x;
+    if (seen[local] || binary[(y0 + y) * stride + (x0 + x)]) return;
+    seen[local] = 1;
+    stack.push(local);
+  };
+  for (let x = 0; x < gw; x++) {
+    push(x, 0);
+    push(x, gh - 1);
+  }
+  for (let y = 0; y < gh; y++) {
+    push(0, y);
+    push(gw - 1, y);
+  }
+  while (stack.length) {
+    const cur = stack.pop() as number;
+    const cx = cur % gw;
+    const cy = (cur - cx) / gw;
+    push(cx - 1, cy);
+    push(cx + 1, cy);
+    push(cx, cy - 1);
+    push(cx, cy + 1);
+  }
+  return seen;
+}
+
 export function interpretMoney(raw: string, confidence: number): number | null {
   if (confidence < 0.55) return null;
   const clean = raw.replace(/^[POTpote$:]+/, '').replace(/,/g, '.').trim();
@@ -272,6 +484,7 @@ export function interpretMoney(raw: string, confidence: number): number | null {
   const decimals = match[2] ?? '';
   const suffix = match[3];
   const whole = match[1];
+  if (whole.length > 6) return null;
   // A lone digit is a fragment (the "4" inside 48,00), not a pot.
   if (whole.length < 2 && decimals.length !== 2 && !suffix) return null;
   if (decimals.length === 1 && !suffix) return null;

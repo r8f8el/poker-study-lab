@@ -1,7 +1,7 @@
 import { CardString, TableLayoutProfile } from '../../../../packages/shared-types/src';
 import { ButtonDetector, ButtonDetectionResult } from './ButtonDetector';
 import { CardDetector, CardDetectionOutput } from './CardDetector';
-import { interpretMoney, NumberOcr } from './NumberOcr';
+import { interpretMoney, NumberOcr, recognizeStructuredMoney } from './NumberOcr';
 
 export interface PerceptionBox {
   x: number;
@@ -123,6 +123,14 @@ function isCardWhite(r: number, g: number, b: number): boolean {
   return r > 195 && g > 195 && b > 195 && Math.max(r, g, b) - Math.min(r, g, b) < 48;
 }
 
+/** Folded Suprema hole cards sit around RGB 74, not white. */
+function isDimCardFace(r: number, g: number, b: number): boolean {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lum = (r + g + b) / 3;
+  return lum >= 58 && lum <= 145 && max - min < 26 && g < r + 18;
+}
+
 function isGold(r: number, g: number, b: number): boolean {
   return r > 165 && g > 120 && b < 145 && r > b * 1.25 && g > b * 0.85;
 }
@@ -139,13 +147,38 @@ interface Component {
   area: number;
 }
 
+function erodedDimMask(pixels: Uint8ClampedArray, width: number, height: number): Uint8Array {
+  const raw = new Uint8Array(width * height);
+  for (let i = 0; i < width * height; i++) {
+    const p = i * 4;
+    if (isDimCardFace(pixels[p], pixels[p + 1], pixels[p + 2])) raw[i] = 1;
+  }
+  const out = new Uint8Array(width * height);
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const i = y * width + x;
+      if (
+        raw[i] &&
+        raw[i - 1] &&
+        raw[i + 1] &&
+        raw[i - width] &&
+        raw[i + width]
+      ) {
+        out[i] = 1;
+      }
+    }
+  }
+  return out;
+}
+
 function connectedComponents(
   pixels: Uint8ClampedArray,
   width: number,
   height: number,
   bounds: PerceptionBox,
   accept: (r: number, g: number, b: number) => boolean,
-  minArea: number
+  minArea: number,
+  mask?: Uint8Array
 ): Component[] {
   const visited = new Uint8Array(width * height);
   const components: Component[] = [];
@@ -159,7 +192,8 @@ function connectedComponents(
       const start = y * width + x;
       if (visited[start]) continue;
       const pi = start * 4;
-      if (!accept(pixels[pi], pixels[pi + 1], pixels[pi + 2])) continue;
+      const on = mask ? mask[start] === 1 : accept(pixels[pi], pixels[pi + 1], pixels[pi + 2]);
+      if (!on) continue;
 
       let minX = x;
       let maxX = x;
@@ -185,7 +219,8 @@ function connectedComponents(
           const ny = (n - nx) / width;
           if (nx < x0 || nx >= x1 || ny < y0 || ny >= y1) continue;
           const npi = n * 4;
-          if (!accept(pixels[npi], pixels[npi + 1], pixels[npi + 2])) continue;
+          const neighborOn = mask ? mask[n] === 1 : accept(pixels[npi], pixels[npi + 1], pixels[npi + 2]);
+          if (!neighborOn) continue;
           visited[n] = 1;
           stack.push(n);
         }
@@ -244,8 +279,9 @@ function crop(
 }
 
 function expandShortFace(box: PerceptionBox, imageHeight: number): PerceptionBox {
+  // Only the top cap of a card is shorter than it is wide. A full card is taller.
+  if (box.height >= box.width) return box;
   const targetH = Math.round(box.width / 0.62);
-  if (box.height >= targetH * 0.85) return box;
   const height = Math.min(targetH, imageHeight - box.y);
   return { ...box, height: Math.max(box.height, height) };
 }
@@ -253,7 +289,8 @@ function expandShortFace(box: PerceptionBox, imageHeight: number): PerceptionBox
 function splitWideCard(
   pixels: Uint8ClampedArray,
   width: number,
-  box: PerceptionBox
+  box: PerceptionBox,
+  isFace: (r: number, g: number, b: number) => boolean
 ): PerceptionBox[] {
   const aspect = box.width / Math.max(1, box.height);
   if (aspect < 1.05 || box.width < 24) return [box];
@@ -262,7 +299,7 @@ function splitWideCard(
   for (let y = 0; y < box.height; y++) {
     for (let x = 0; x < box.width; x++) {
       const i = ((box.y + y) * width + (box.x + x)) * 4;
-      if (isCardWhite(pixels[i], pixels[i + 1], pixels[i + 2])) columns[x]++;
+      if (isFace(pixels[i], pixels[i + 1], pixels[i + 2])) columns[x]++;
     }
   }
   const start = Math.floor(box.width * 0.3);
@@ -314,11 +351,45 @@ function findCardFaces(
     if (box.height < 16 || box.width < 10) continue;
     if (box.width > felt.width * 0.7 || box.height > felt.height * 0.45) continue;
     const aspect = box.width / box.height;
-    if (aspect < 0.35 || aspect > 2.4) continue;
-    for (const part of splitWideCard(pixels, width, box)) {
+    if (aspect < 0.35 || aspect > 2.6) continue;
+    for (const part of splitWideCard(pixels, width, box, isCardWhite)) {
       const grown = expandShortFace(part, height);
       const aspect = grown.width / grown.height;
       if (grown.height >= 16 && grown.width >= 10 && aspect >= 0.4 && aspect < 1.15) {
+        faces.push(grown);
+      }
+    }
+  }
+  const dimSearch: PerceptionBox = {
+    x: felt.x,
+    y: felt.y,
+    width: felt.width,
+    height: Math.min(height - felt.y, felt.height + Math.round(height * 0.08))
+  };
+  const dim = connectedComponents(
+    pixels,
+    width,
+    height,
+    dimSearch,
+    isDimCardFace,
+    200,
+    erodedDimMask(pixels, width, height)
+  );
+  for (const comp of dim) {
+    const box: PerceptionBox = {
+      x: comp.minX,
+      y: comp.minY,
+      width: comp.maxX - comp.minX + 1,
+      height: comp.maxY - comp.minY + 1
+    };
+    if (box.height < 36 || box.width < 24) continue;
+    if (box.height > height * 0.16 || box.width > width * 0.42) continue;
+    const aspect = box.width / box.height;
+    if (aspect < 0.4 || aspect > 2.6) continue;
+    for (const part of splitWideCard(pixels, width, box, isDimCardFace)) {
+      const grown = expandShortFace(part, height);
+      const partAspect = grown.width / grown.height;
+      if (grown.height >= 28 && grown.width >= 16 && partAspect >= 0.45 && partAspect < 1.2) {
         faces.push(grown);
       }
     }
@@ -384,7 +455,11 @@ function assignCards(
 
   const boardRows = rows.filter(row => row !== hero && row.length >= 3);
   if (boardRows.length > 0) {
-    boardRows.sort((a, b) => b.length - a.length);
+    const area = (row: PerceptionBox[]) => {
+      const sizes = row.map(box => box.width * box.height).sort((a, b) => a - b);
+      return sizes[Math.floor(sizes.length / 2)];
+    };
+    boardRows.sort((a, b) => area(b) - area(a));
     board = boardRows[0].slice(0, 5);
   }
 
@@ -403,8 +478,33 @@ function assignCards(
   return { hero, board };
 }
 
+function liftDimCard(data: Uint8ClampedArray): Uint8ClampedArray {
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    if (Math.max(r, g, b) - Math.min(r, g, b) < 30) {
+      sum += (r + g + b) / 3;
+      count++;
+    }
+  }
+  const face = count > 0 ? sum / count : 255;
+  if (face > 150 || face < 40) return data;
+  const scale = 232 / face;
+  const out = new Uint8ClampedArray(data.length);
+  for (let i = 0; i < data.length; i += 4) {
+    out[i] = Math.min(255, Math.round(data[i] * scale));
+    out[i + 1] = Math.min(255, Math.round(data[i + 1] * scale));
+    out[i + 2] = Math.min(255, Math.round(data[i + 2] * scale));
+    out[i + 3] = 255;
+  }
+  return out;
+}
+
 function readCard(detector: CardDetector, pixels: Uint8ClampedArray, width: number, box: PerceptionBox): CardDetectionOutput {
-  const data = crop(pixels, width, box);
+  const data = liftDimCard(crop(pixels, width, box));
   return detector.analyzeCrop(data, box.width, box.height);
 }
 
@@ -446,6 +546,38 @@ function overlapsCard(box: PerceptionBox, cards: PerceptionBox[]): boolean {
   return cards.some(card => cx >= card.x && cx <= card.x + card.width && cy >= card.y && cy <= card.y + card.height);
 }
 
+function acceptMoneyRead(
+  templateRaw: string,
+  templateConfidence: number,
+  structuredRaw: string,
+  structuredValue: number | null
+): { value: number | null; confidence: number; raw: string } {
+  const templateValue = interpretMoney(templateRaw, templateConfidence);
+  if (
+    structuredValue !== null &&
+    templateValue !== null &&
+    Math.abs(structuredValue - templateValue) < 0.01
+  ) {
+    return { value: structuredValue, confidence: Math.max(templateConfidence, 0.9), raw: structuredRaw };
+  }
+  // Painted template glyphs score well. Suprema's font does not (about 0.62
+  // and a wrong value such as 26.66), so a weak template loses to the shape reader.
+  if (templateValue !== null && templateConfidence >= 0.7) {
+    return { value: templateValue, confidence: templateConfidence, raw: templateRaw };
+  }
+  if (structuredValue !== null) {
+    return { value: structuredValue, confidence: 0.9, raw: structuredRaw };
+  }
+  // Shape reader found nothing to contradict a template hit (synthetic glyphs).
+  if (templateValue !== null && structuredValue === null && structuredRaw === '') {
+    return { value: templateValue, confidence: templateConfidence, raw: templateRaw };
+  }
+  if (templateValue !== null && structuredValue === null && templateConfidence >= 0.8) {
+    return { value: templateValue, confidence: templateConfidence, raw: templateRaw };
+  }
+  return { value: null, confidence: 0, raw: templateRaw || structuredRaw };
+}
+
 function readMoney(
   pixels: Uint8ClampedArray,
   width: number,
@@ -453,21 +585,27 @@ function readMoney(
   felt: PerceptionBox,
   cards: PerceptionBox[]
 ): { value: number | null; confidence: number; raw: string } {
-  const glyphs = connectedComponents(pixels, width, height, felt, isGold, 4)
+  const goldGlyphs = connectedComponents(pixels, width, height, felt, isGold, 4)
     .map(lineBox)
     .filter(box => box.height >= 2 && box.height <= 28 && box.width <= 24 && !overlapsCard(box, cards));
-  const lines = mergeHorizontal(glyphs, 14).filter(line => line.width >= 8 && line.height <= 36);
+  const whiteGlyphs = connectedComponents(pixels, width, height, felt, (r, g, b) => r > 185 && g > 185 && b > 185, 4)
+    .map(lineBox)
+    .filter(box => box.height >= 2 && box.height <= 22 && box.width <= 20 && !overlapsCard(box, cards));
+  const lines = mergeHorizontal([...goldGlyphs, ...whiteGlyphs], 14).filter(
+    line => line.width >= 8 && line.height <= 36 && line.width < felt.width * 0.45
+  );
   const center = { x: felt.x + felt.width / 2, y: felt.y + felt.height * 0.42 };
   let best: { value: number; confidence: number; raw: string; distance: number } | null = null;
 
   for (const line of lines) {
     const data = crop(pixels, width, line);
-    const ocr = NumberOcr.recognizeNumber(data, line.width, line.height);
-    const value = interpretMoney(ocr.rawText, ocr.confidence);
-    if (value === null) continue;
+    const templ = NumberOcr.recognizeNumber(data, line.width, line.height);
+    const shaped = recognizeStructuredMoney(data, line.width, line.height);
+    const accepted = acceptMoneyRead(templ.rawText, templ.confidence, shaped.rawText, shaped.value);
+    if (accepted.value === null) continue;
     const distance = Math.hypot(line.x + line.width / 2 - center.x, line.y + line.height / 2 - center.y);
     if (!best || distance < best.distance) {
-      best = { value, confidence: ocr.confidence, raw: ocr.rawText, distance };
+      best = { value: accepted.value, confidence: accepted.confidence, raw: accepted.raw, distance };
     }
   }
 
@@ -631,11 +769,16 @@ export function perceiveTable(
 ): TablePerception {
   const felt = largestFelt(pixels, width, height);
   const faces = findCardFaces(pixels, width, height, felt);
+  const recognized = faces
+    .map(box => ({ box, read: readCard(detector, pixels, width, box) }))
+    .filter(item => item.read.visualState === 'VISIBLE_CARD' && item.read.card);
   const prior = priorFromProfile(profile, width, height);
-  const assigned = assignCards(faces, height, prior);
+  const assigned = assignCards(recognized.map(item => item.box), height, prior);
+  const readOf = (box: PerceptionBox) =>
+    recognized.find(item => item.box.x === box.x && item.box.y === box.y && item.box.width === box.width)?.read;
 
-  const heroReads = assigned.hero.slice(0, 2).map(box => readCard(detector, pixels, width, box));
-  const boardReads = assigned.board.slice(0, 5).map(box => readCard(detector, pixels, width, box));
+  const heroReads = assigned.hero.slice(0, 2).map(box => readOf(box));
+  const boardReads = assigned.board.slice(0, 5).map(box => readOf(box));
 
   const heroOutputs: [CardDetectionOutput, CardDetectionOutput] = [
     heroReads[0] && heroReads[0].card ? heroReads[0] : emptyCard('Nenhuma face de carta do Hero encontrada.'),
