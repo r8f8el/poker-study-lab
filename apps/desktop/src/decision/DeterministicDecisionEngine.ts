@@ -14,6 +14,25 @@ export interface DecisionEngineOptions {
 
 export class DeterministicDecisionEngine {
   /**
+   * Amount the hero must put in to continue. Shared by the strategy engine and
+   * the explainer so the two cannot disagree about a free check.
+   */
+  public static resolveCallAmount(gameState: GameState): number {
+    const lastAction = gameState.action_history[gameState.action_history.length - 1];
+    if (
+      lastAction &&
+      (lastAction.action === 'bet' || lastAction.action === 'raise') &&
+      lastAction.player !== 'Hero'
+    ) {
+      return lastAction.amount || Math.round(gameState.pot * 0.33);
+    }
+    if (gameState.street === 'PREFLOP') {
+      return Math.max(0, gameState.blinds.big - (gameState.hero.currentBet ?? 0));
+    }
+    return 0;
+  }
+
+  /**
    * Generates a deterministic decision recommendation based on math (pot odds, equity, position, made hand).
    */
   public static evaluate(
@@ -44,14 +63,7 @@ export class DeterministicDecisionEngine {
     const handEval: HandEvaluation = HandEvaluator.evaluate([...heroCards, ...boardCards]);
 
     // 2. Determine if facing a bet (amount to call)
-    let callAmount = 0;
-    const lastAction = gameState.action_history[gameState.action_history.length - 1];
-    if (lastAction && (lastAction.action === 'bet' || lastAction.action === 'raise') && lastAction.player !== 'Hero') {
-      callAmount = lastAction.amount || Math.round(pot * 0.33);
-    } else if (gameState.street === 'PREFLOP') {
-      // Facing big blind if not yet called
-      callAmount = Math.max(0, gameState.blinds.big - (gameState.hero.currentBet ?? 0));
-    }
+    const callAmount = DeterministicDecisionEngine.resolveCallAmount(gameState);
 
     // 3. Compute Pot Odds
     const potOdds = EquityCalculator.calculatePotOdds(callAmount, pot);

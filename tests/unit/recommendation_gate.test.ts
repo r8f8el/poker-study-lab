@@ -3,7 +3,8 @@ import { RecommendationGate } from '../../apps/desktop/src/app-state/Recommendat
 import {
   MOCK_VALID_FLOP_STATE,
   MOCK_INCONSISTENT_DUPLICATE_CARD_STATE,
-  MOCK_UNCERTAIN_STATE
+  MOCK_UNCERTAIN_STATE,
+  MOCK_SUPREMA_POKER_STATE
 } from '../../packages/test-fixtures/src';
 import { AppSettings } from '../../packages/shared-types/src';
 
@@ -60,6 +61,22 @@ describe('RecommendationGate - Security & Consistency Enforcement', () => {
     const result = gate.evaluate(MOCK_UNCERTAIN_STATE);
     expect(result.allowed).toBe(false);
     expect(result.reasons.some((r: string) => r.includes('Confiança geral'))).toBe(true);
+  });
+
+  it('allows a correct optical read whose confidence is below 0.95 but at least probable', () => {
+    const realistic = {
+      ...MOCK_VALID_FLOP_STATE,
+      confidence: {
+        ...MOCK_VALID_FLOP_STATE.confidence,
+        hero_cards: [
+          { value: 'As', confidence: 0.91 },
+          { value: 'Kc', confidence: 0.9 }
+        ],
+        overall_confidence: 0.86
+      }
+    };
+    const result = gate.evaluate(realistic);
+    expect(result.allowed).toBe(true);
   });
 
   it('blocks recommendation when flop card count is invalid', () => {
@@ -133,6 +150,25 @@ describe('RecommendationGate - Security & Consistency Enforcement', () => {
     const result = gate.evaluate(singlePlayerLeft);
     expect(result.allowed).toBe(false);
     expect(result.blockCode).toBe('INSUFFICIENT_ACTIVE_PLAYERS');
+  });
+
+  it('allows the default Suprema study state (preflop, no community cards)', () => {
+    const result = gate.evaluate(MOCK_SUPREMA_POKER_STATE);
+    expect(result.allowed).toBe(true);
+  });
+
+  it('blocks a positive pot that the vision pipeline has not confirmed', () => {
+    const unreadPot = {
+      ...MOCK_VALID_FLOP_STATE,
+      pot: 150,
+      confidence: {
+        ...MOCK_VALID_FLOP_STATE.confidence,
+        pot: { value: 150, confidence: 0 }
+      }
+    };
+    const result = gate.evaluate(unreadPot);
+    expect(result.allowed).toBe(false);
+    expect(result.reasons.some((r: string) => r.includes('pote não confirmado'))).toBe(true);
   });
 
   it('blocks recommendation when sum of current round bets exceeds total pot', () => {

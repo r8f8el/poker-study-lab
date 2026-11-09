@@ -10,6 +10,7 @@ import {
 import { CardDetector, CardDetectionOutput } from './CardDetector';
 import { RoiManager, CardRegions } from '../capture/RoiManager';
 import { TemporalTableValidator } from './TemporalValidator';
+import { resolveLiveCards } from './resolveLiveCards';
 
 export interface SlotDebugInfo {
   id: string; // 'hero_1' | 'hero_2' | 'flop_1' | 'flop_2' | 'flop_3' | 'turn' | 'river'
@@ -34,10 +35,14 @@ export interface SlotDebugInfo {
 
 export interface VisionDetectionResult {
   heroCards: CardString[];
+  heroConfidences: [number, number];
   boardCards: CardString[];
+  boardConfidence: number;
   potValue: number | null;
   street: Street;
   confidence: number;
+  temporalConsistency: number;
+  isAnimationActive: boolean;
   slotsDebug: SlotDebugInfo[];
 }
 
@@ -70,7 +75,7 @@ export class TableVisionAnalyzer {
   public async analyzeFrame(
     frame: CapturedFrame,
     profile: TableLayoutProfile,
-    _temporalValidator?: TemporalTableValidator
+    temporalValidator?: TemporalTableValidator
   ): Promise<VisionDetectionResult | null> {
     if (!frame.dataUrl || this.isProcessing) return null;
 
@@ -114,56 +119,28 @@ export class TableVisionAnalyzer {
       const river = this.analyzeSlot('river', 'River', regions.board_river);
 
       const allSlotResults = [hero1, hero2, flop1, flop2, flop3, turn, river];
-
-      // Extract unique cards without duplicates across the single 52-card deck
-      const usedCards = new Set<string>();
-
-      const boardCards: CardString[] = [];
-      for (const res of [flop1, flop2, flop3, turn, river]) {
-        const slot = res.output;
-        if (slot.visualState === 'VISIBLE_CARD' && slot.card) {
-          if (!usedCards.has(slot.card)) {
-            usedCards.add(slot.card);
-            boardCards.push(slot.card);
-          } else {
-            res.debug.card = null;
-            res.debug.reasons.push('Carta duplicada suprimida (conflito de baralho).');
-          }
-        }
-      }
-
-      const heroCards: CardString[] = [];
-      for (const res of [hero1, hero2]) {
-        const slot = res.output;
-        if (slot.visualState === 'VISIBLE_CARD' && slot.card) {
-          if (!usedCards.has(slot.card)) {
-            usedCards.add(slot.card);
-            heroCards.push(slot.card);
-          } else {
-            res.debug.card = null;
-            res.debug.reasons.push('Carta duplicada suprimida (já presente no board ou na mão).');
-          }
-        }
-      }
-
-      // Determine Street based on actual board cards count
-      let street: Street = 'PREFLOP';
-      if (boardCards.length >= 5) street = 'RIVER';
-      else if (boardCards.length === 4) street = 'TURN';
-      else if (boardCards.length >= 3) street = 'FLOP';
+      const reading = resolveLiveCards(
+        [hero1.output, hero2.output],
+        [flop1.output, flop2.output, flop3.output, turn.output, river.output],
+        temporalValidator,
+        performance.now()
+      );
 
       const potValue = this.estimatePotFromRegion(regions.pot);
-
       const slotsDebug: SlotDebugInfo[] = allSlotResults.map(r => r.debug);
 
       this.isProcessing = false;
 
       return {
-        heroCards,
-        boardCards,
+        heroCards: reading.heroCards,
+        heroConfidences: reading.heroConfidences,
+        boardCards: reading.boardCards,
+        boardConfidence: reading.boardConfidence,
         potValue,
-        street,
-        confidence: 0.95,
+        street: reading.street,
+        confidence: reading.overallConfidence,
+        temporalConsistency: reading.temporalConsistency,
+        isAnimationActive: reading.isAnimationActive,
         slotsDebug
       };
     } catch {
@@ -280,23 +257,11 @@ export class TableVisionAnalyzer {
   }
 
   private estimatePotFromRegion(potRegion: { x: number; y: number; width: number; height: number }): number | null {
-    if (!this.ctx) return null;
-    try {
-      const imgData = this.ctx.getImageData(potRegion.x, potRegion.y, potRegion.width, potRegion.height);
-      let nonFeltPixels = 0;
-      for (let i = 0; i < imgData.data.length; i += 4) {
-        const r = imgData.data[i];
-        const g = imgData.data[i + 1];
-        const b = imgData.data[i + 2];
-        // Yellow or white text detection for pot numbers (like "POT 16" or "1.2K")
-        if ((r > 180 && g > 160 && b < 80) || (r > 200 && g > 200 && b > 200)) {
-          nonFeltPixels++;
-        }
-      }
-      return nonFeltPixels > 25 ? null : null; // don't hallucinate 16 unless parsed
-    } catch {
-      return null;
-    }
+    // Digit OCR is not implemented. null means "pot not read". Callers must
+    // keep the previous pot; substituting 0 displays a fake pot and blocks
+    // every live recommendation.
+    void potRegion;
+    return null;
   }
 
   private loadImage(src: string): Promise<HTMLImageElement> {

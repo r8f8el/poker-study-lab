@@ -177,5 +177,6 @@ describe('Incremento 6 — DeterministicDecisionEngine', () => {
     const rec = DeterministicDecisionEngine.evaluate(monsterFacingBet, allowedGate);
     expect(rec.action).toBe('raise');
     expect(rec.frequencies.raise).toBeGreaterThan(0.5);
+    expect(DeterministicDecisionEngine.resolveCallAmount(monsterFacingBet)).toBe(20);
   });
 });

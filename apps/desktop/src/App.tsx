@@ -36,6 +36,8 @@ import { DeterministicDecisionEngine } from './decision/DeterministicDecisionEng
 import { OPPONENT_PROFILES } from './decision/RangeModel';
 import { AIExplanationService } from './ai/AIExplanationService';
 import { TableVisionAnalyzer, SlotDebugInfo } from './vision/TableVisionAnalyzer';
+import { mergeVisionIntoGameState } from './vision/mergeVisionState';
+import { TableStateMachine } from '../../../services/game_state/TableStateMachine';
 
 const INITIAL_SETTINGS: AppSettings = {
   authorizedAppIdentifier: 'com.auth.poker.client',
@@ -130,18 +132,27 @@ export const App: React.FC = () => {
     new TemporalTableValidator(
       INITIAL_SETTINGS.temporalWindowFrames,
       INITIAL_SETTINGS.temporalMinConsensusFrames,
-      INITIAL_SETTINGS.minConfidenceTemporalAccept
+      Math.min(INITIAL_SETTINGS.minConfidenceTemporalAccept, INITIAL_SETTINGS.minConfidenceProbable)
     )
   );
+  const tableMachineRef = useRef<TableStateMachine>(new TableStateMachine());
 
   useEffect(() => {
     gateRef.current.updateSettings(settings);
+  }, [settings]);
+
+  useEffect(() => {
     tableValidatorRef.current = new TemporalTableValidator(
       settings.temporalWindowFrames,
       settings.temporalMinConsensusFrames,
-      settings.minConfidenceTemporalAccept
+      Math.min(settings.minConfidenceTemporalAccept, settings.minConfidenceProbable)
     );
-  }, [settings]);
+  }, [
+    settings.temporalWindowFrames,
+    settings.temporalMinConsensusFrames,
+    settings.minConfidenceTemporalAccept,
+    settings.minConfidenceProbable
+  ]);
 
   // Initialize WindowLifecycleMonitor listener
   useEffect(() => {
@@ -212,39 +223,23 @@ export const App: React.FC = () => {
                   setSlotsDebug(detection.slotsDebug);
                 }
 
-                setGameState(prev => {
-                  return {
-                    ...prev,
-                    hero: {
-                      ...prev.hero,
-                      cards: (detection.heroCards.length >= 2
-                        ? [detection.heroCards[0], detection.heroCards[1]]
-                        : detection.heroCards) as any
-                    },
-                    board: detection.boardCards,
-                    pot: detection.potValue !== null ? detection.potValue : 0,
-                    street: detection.street,
-                    confidence: {
-                      ...prev.confidence,
-                      hero_cards: [
-                        { value: detection.heroCards[0] || '', confidence: detection.heroCards[0] ? 0.98 : 0 },
-                        { value: detection.heroCards[1] || '', confidence: detection.heroCards[1] ? 0.98 : 0 }
-                      ],
-                      board: {
-                        value: detection.boardCards,
-                        confidence: detection.boardCards.length > 0 ? 0.98 : 1.0
-                      },
-                      pot: {
-                        value: detection.potValue ?? 0,
-                        confidence: 0.95
-                      },
-                      overall_confidence: detection.confidence
-                    }
-                  };
-                });
+                const nextStatus = detection.isAnimationActive
+                  ? null
+                  : tableMachineRef.current.evaluateTransition({
+                      hasAuthorizedApp: true,
+                      hasTable: true,
+                      heroCards: detection.heroCards,
+                      boardCards: detection.boardCards
+                    }).newStatus;
+
+                setGameState(prev =>
+                  mergeVisionIntoGameState(prev, detection, nextStatus ?? prev.status)
+                );
               }
             })
-            .catch(() => {});
+            .catch(err => {
+              console.error('Vision analysis failed:', err);
+            });
         }
       },
       onStatusChange: status => {
@@ -268,10 +263,12 @@ export const App: React.FC = () => {
         ...prev.confidence,
         hero_cards: [{ value: '', confidence: 0 }, { value: '', confidence: 0 }],
         board: { value: [], confidence: 1.0 },
-        pot: { value: 0, confidence: 1.0 },
-        overall_confidence: 1.0
+        pot: { value: 0, confidence: 0 },
+        overall_confidence: 0
       }
     }));
+    tableMachineRef.current = new TableStateMachine();
+    tableValidatorRef.current.resetHand();
     setSlotsDebug([]);
   };
 
@@ -399,16 +396,31 @@ export const App: React.FC = () => {
 
   const handleApplyManualCorrection = (correctedPartial: Partial<GameState>, reason: string) => {
     logEvent('MANUAL_CORRECTION', { reason, changes: correctedPartial }, 1.0);
-    setGameState(prev => ({
-      ...prev,
-      ...correctedPartial,
-      status: 'FLOP',
-      confidence: {
-        ...prev.confidence,
-        overall_confidence: 0.99
-      },
-      lastUpdated: new Date().toISOString()
-    }));
+    setGameState(prev => {
+      const street = correctedPartial.street ?? prev.street;
+      const pot = correctedPartial.pot ?? prev.pot;
+      const heroCards = correctedPartial.hero?.cards ?? prev.hero.cards;
+      const board = correctedPartial.board ?? prev.board;
+      tableMachineRef.current.setStatus(street);
+      return {
+        ...prev,
+        ...correctedPartial,
+        street,
+        status: street,
+        isAnimationActive: false,
+        confidence: {
+          ...prev.confidence,
+          hero_cards: [
+            { value: heroCards[0] || '', confidence: heroCards[0] ? 0.99 : 0 },
+            { value: heroCards[1] || '', confidence: heroCards[1] ? 0.99 : 0 }
+          ],
+          board: { value: board, confidence: 0.99 },
+          pot: { value: pot, confidence: pot > 0 ? 0.99 : 0 },
+          overall_confidence: 0.99
+        },
+        lastUpdated: new Date().toISOString()
+      };
+    });
   };
 
   const handleTriggerScenario = (scenarioName: string) => {
@@ -491,7 +503,7 @@ export const App: React.FC = () => {
       hero_cards: gameState.hero.cards,
       board: gameState.board,
       pot_size: gameState.pot,
-      to_call: 0,
+      to_call: DeterministicDecisionEngine.resolveCallAmount(gameState),
       equity: recommendation.equity_estimate ?? 0.5,
       pot_odds: recommendation.pot_odds ?? 0,
       primary_action: recommendation.action,
@@ -523,6 +535,9 @@ export const App: React.FC = () => {
     gameState.hand_id,
     gameState.street,
     gameState.pot,
+    gameState.blinds.big,
+    gameState.hero.currentBet,
+    actionHistoryLength,
     heroCardsKey,
     boardCardsKey,
     gateResult.allowed,
@@ -545,7 +560,7 @@ export const App: React.FC = () => {
       hero_cards: gameState.hero.cards,
       board: gameState.board,
       pot_size: gameState.pot,
-      to_call: 0,
+      to_call: DeterministicDecisionEngine.resolveCallAmount(gameState),
       equity: recommendation.equity_estimate ?? 0.5,
       pot_odds: recommendation.pot_odds ?? 0,
       primary_action: recommendation.action,

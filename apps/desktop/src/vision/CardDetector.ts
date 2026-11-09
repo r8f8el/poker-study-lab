@@ -352,9 +352,13 @@ export class CardDetector {
       };
     }
 
-    // 3. Find white card surface boundary to discard outer table felt, chips, and shadows
+    // 3. Find the white card face. A few bright pixels in felt or a 1–2px
+    // border used to lock the rank window too high: on the PokerStars sample,
+    // shifting the 3♦ crop up by 2px was read as 5♥ until those rows were dropped.
     let cardTopY = 0;
-    for (let y = 0; y < Math.min(height, 20); y++) {
+    const topSearchLimit = Math.min(height, Math.max(20, Math.floor(height * 0.55)));
+    const cardRowWhite = Math.max(6, Math.floor(width * 0.45));
+    for (let y = 0; y < topSearchLimit; y++) {
       let whites = 0;
       for (let x = 0; x < width; x++) {
         const idx = (y * width + x) * 4;
@@ -362,7 +366,7 @@ export class CardDetector {
           whites++;
         }
       }
-      if (whites >= 5) {
+      if (whites >= cardRowWhite) {
         cardTopY = y;
         break;
       }
