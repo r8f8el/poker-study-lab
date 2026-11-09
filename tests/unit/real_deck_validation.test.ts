@@ -147,5 +147,10 @@ describe('Real Deck Image Validation', () => {
     console.log('CLEAN HERO 2:', resHero2Clean.card, resHero2Clean.visualState, resHero2Clean.confidence, JSON.stringify(resHero2Clean.debug));
     expect(resHero1Clean.card).toBe('8c');
     expect(resHero2Clean.card).toBe('5s');
+
+    const hero1Padded = cropRegion(pixels, width, 270, 412, 28, 42);
+    const resHero1Padded = detector.analyzeCrop(hero1Padded, 28, 42);
+    expect(resHero1Padded.visualState).toBe('VISIBLE_CARD');
+    expect(resHero1Padded.card).toBe('8c');
   });
 });

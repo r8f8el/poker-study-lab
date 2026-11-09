@@ -59,7 +59,9 @@ export const WindowSelectorModal: React.FC<WindowSelectorModalProps> = ({
   const handleConfirm = async () => {
     if (!isFormValid) return;
 
-    if (selectedSourceType === 'native' || (window.electronAPI && selectedElectronSourceId)) {
+    // The source type the operator clicked wins. An auto-selected Electron
+    // window id must not override an explicit synthetic choice.
+    if (selectedSourceType === 'native') {
       if (window.electronAPI && selectedElectronSourceId) {
         const picked = electronSources.find(s => s.id === selectedElectronSourceId);
         onSelectAndStart(

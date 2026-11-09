@@ -32,7 +32,10 @@ export const POKERSTARS_LAYOUT_PROFILE: TableLayoutProfile = {
   referenceResolution: { width: 1280, height: 720 },
   regions: {
     hero_cards: { x: 575, y: 425, width: 130, height: 70 },
-    board: { x: 475, y: 225, width: 330, height: 95 },
+    // Aligned to packages/test-fixtures/assets/pokerstars_sample.png (1024×576,
+    // which is 0.8× the 1280×720 reference). The previous box started 2px high
+    // and overlapped the next card, so Qc/3d were read as 8c/Kh.
+    board: { x: 480, y: 228, width: 319, height: 85 },
     pot: { x: 580, y: 195, width: 120, height: 35 },
     players: [
       { x: 190, y: 215, width: 180, height: 90 }, // Player 1 (top-left)
@@ -177,24 +180,25 @@ export const MOCK_SUPREMA_POKER_STATE: GameState = {
   ...MOCK_VALID_FLOP_STATE,
   table_id: 'table-suprema-nlh-01',
   hand_id: 'hand-suprema-live-002',
-  street: 'FLOP',
-  status: 'FLOP',
+  street: 'PREFLOP',
+  status: 'PREFLOP',
   blinds: { small: 2, big: 4 },
   hero: {
     position: 'BB',
     cards: ['Kh', '4c'],
     stack: 386
   },
-  board: ['Js', 'Qh'],
+  // Two community cards is not a legal street. The sample hand is preflop.
+  board: [],
   pot: 16,
-  available_actions: ['check', 'bet'],
+  available_actions: ['fold', 'call', 'raise'],
   action_history: [],
   confidence: {
     hero_cards: [
       { value: 'Kh', confidence: 0.98 },
       { value: '4c', confidence: 0.97 }
     ],
-    board: { value: ['Js', 'Qh'], confidence: 0.99 },
+    board: { value: [], confidence: 1 },
     pot: { value: 16, confidence: 0.98 },
     active_player: { value: 'hero', confidence: 0.99 },
     temporal_consistency: 0.98,

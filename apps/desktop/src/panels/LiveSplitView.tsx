@@ -1499,7 +1499,9 @@ export const LiveSplitView: React.FC<LiveSplitViewProps> = ({
             </div>
             <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 4px', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Pote</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#fbbf24' }}>${gameState.pot}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#fbbf24' }}>
+                {gameState.confidence.pot.confidence <= 0 ? '—' : `$${gameState.pot}`}
+              </div>
             </div>
             <div style={{ background: 'rgba(0,0,0,0.3)', padding: '8px 4px', borderRadius: 8 }}>
               <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Posição</div>

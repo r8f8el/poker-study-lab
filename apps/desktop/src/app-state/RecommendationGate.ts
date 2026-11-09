@@ -164,6 +164,10 @@ export class RecommendationGate {
     // 13. Pot & Bet consistency checks
     if (gameState.pot <= 0) {
       reasons.push('Valor do pote inválido ou nulo.');
+    } else if (gameState.confidence.pot.confidence < this.settings.minConfidenceProbable) {
+      reasons.push(
+        `Valor do pote não confirmado pela leitura visual (confiança ${(gameState.confidence.pot.confidence * 100).toFixed(0)}%).`
+      );
     }
 
     if (gameState.players && gameState.players.length > 0) {
@@ -177,8 +181,12 @@ export class RecommendationGate {
       reasons.push('Nenhuma ação legal disponível identificada para o Hero.');
     }
 
-    // 14. Confidence threshold check
-    const minThreshold = this.settings.minConfidenceTemporalAccept;
+    // 14. Confidence threshold check.
+    // Real client skins score about 0.86–0.94 on a correct rank/suit match
+    // (see the PokerStars fixture). minConfidenceProbable is the floor that
+    // still rejects the uncertain fixture (0.74) without blocking a true read.
+    // minConfidenceTemporalAccept stays on the multi-frame validator.
+    const minThreshold = this.settings.minConfidenceProbable;
     if (gameState.confidence.overall_confidence < minThreshold) {
       reasons.push(
         `Confiança geral (${(gameState.confidence.overall_confidence * 100).toFixed(1)}%) abaixo do limite mínimo permitido (${(minThreshold * 100).toFixed(1)}%).`

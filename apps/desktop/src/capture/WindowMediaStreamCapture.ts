@@ -117,7 +117,18 @@ export class WindowMediaStreamCapture extends BaseScreenCapture {
       );
     }
 
-    this.stop();
+    // select_source() may already be holding the granted display stream.
+    // this.stop() releases tracks, which forced a second share dialog and
+    // dropped the window the operator had just authorized.
+    const reusableStream =
+      this.mediaStream && this.activeSource?.id === source.id ? this.mediaStream : null;
+    if (this.mediaStream && !reusableStream) {
+      this.mediaStream.getTracks().forEach(track => track.stop());
+      this.mediaStream = null;
+    }
+
+    super.stop();
+    this.mediaStream = reusableStream;
     this.activeSource = source;
     this.windowMonitor.setMonitoredSource(source);
     this.targetFps = Math.max(1, Math.min(30, fps));

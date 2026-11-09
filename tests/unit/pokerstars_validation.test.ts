@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as zlib from 'zlib';
 import * as path from 'path';
 import { CardDetector } from '../../apps/desktop/src/vision/CardDetector';
+import { RoiManager } from '../../apps/desktop/src/capture/RoiManager';
+import { POKERSTARS_LAYOUT_PROFILE } from '../../packages/test-fixtures/src';
 
 function decodePNG(filePath: string) {
   const buf = fs.readFileSync(filePath);
@@ -104,5 +106,36 @@ describe('PokerStars Live Image Validation', () => {
       expect(res.visualState).toBe('VISIBLE_CARD');
       expect(res.card).toBe(c.expected);
     }
+  });
+
+  it('reads the same cards through the PokerStars layout profile, including a 2px top pad on the 3d', () => {
+    if (!hasImage) return;
+
+    const regions = new RoiManager(POKERSTARS_LAYOUT_PROFILE).getComputedCardRegions(img.width, img.height);
+    const expected: Record<string, string | null> = {
+      board_flop_1: '2h',
+      board_flop_2: 'Qc',
+      board_flop_3: '3d',
+      board_turn: 'Kd',
+      board_river: null,
+      hero_card_1: 'Jc',
+      hero_card_2: 'Tc'
+    };
+
+    for (const [key, card] of Object.entries(expected)) {
+      const region = regions[key as keyof typeof regions];
+      const px = crop(img, region.x, region.y, region.width, region.height);
+      const res = detector.analyzeCrop(px, region.width, region.height);
+      if (card === null) {
+        expect(res.card).toBeNull();
+      } else {
+        expect(res.card).toBe(card);
+      }
+    }
+
+    // The previous card-top scan locked onto 2px of padding and called this 5h.
+    const padded = crop(img, 485, 180, 48, 70);
+    const paddedResult = detector.analyzeCrop(padded, 48, 70);
+    expect(paddedResult.card).toBe('3d');
   });
 });
